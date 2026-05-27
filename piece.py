@@ -22,11 +22,11 @@ def _next_type() -> str:
 
 
 class Piece:
-    def __init__(self):
-        self.type     = _next_type()
-        self.shape    = [row[:] for row in SHAPES[self.type]]
-        self.x        = COLS // 2 - len(self.shape[0]) // 2
-        self.y        = 0
+    def __init__(self, shape_name: str | None = None):
+        self.type      = shape_name if shape_name is not None else _next_type()
+        self.shape     = [row[:] for row in SHAPES[self.type]]
+        self.x         = COLS // 2 - len(self.shape[0]) // 2
+        self.y         = 0
         self.rot_state = 0   # 0=spawn, 1=CW, 2=180, 3=CCW
 
     def rotated_cw(self) -> tuple[list[list[int]], int]:
