@@ -41,7 +41,7 @@ from game_constants import (
 )
 from game_state import GameState
 from app_state import AppState
-from game_logic import spawn_next, end_game
+from game_logic import spawn_next, end_game, do_lock
 from input_handler import handle_input, MUSIC_END
 
 # ── states ────────────────────────────────────────────────────────────────────
