@@ -71,7 +71,7 @@ persisted across sessions in `config.json`. Ghost-piece opacity is also persiste
 - **Danger bonus** — rows cleared above the red line score 2× with floating ×2 labels
 - **WOW / perfect clear** — clears that leave the board completely empty trigger a
   full-board rainbow flash, a large centred popup, score bonus, and max particles
-- Per-piece spawn tones + move / rotate / lock / hard-drop SFX
+- Per-piece spawn tones + move / rotate / lock / hard-drop / **level-up** SFX
 - **5-piece next preview** — NEXT box shows piece 1 large + pieces 2–5 in a compact 2×2 mini grid below
 - **Score-delta labels** — a coloured "+N" floats up from the board on every scored event (T-spin = purple, B2B = gold, cascade = cyan, danger = orange)
 - **GRAVITY 20G alert** — popup fires the moment level 20 is reached so the mode change is never a surprise
@@ -210,17 +210,17 @@ pip install pytest
 python3 -m pytest tests/ -v
 ```
 
-42 tests covering board logic (collision, clearing, cascade gravity, color removal) and scoring constants.
+72 tests covering board logic (collision, clearing, cascade gravity, color removal), scoring constants, and game_logic.py integration (spawn, hold, lock, new-game, end-game, reset-lock, debug-clear).
 
 ---
 
 ## Project structure
 
 ```
-main.py           bootstrap + frame body — gravity, clearing, cascading, draw (~590 lines)
+main.py           bootstrap + frame body — gravity, game-over anim, draw (~370 lines)
 game_state.py     GameState — all per-session mutable state; reset() to start new game
 app_state.py      AppState — cross-session shell state + state-machine string constants
-game_logic.py     spawn_next, do_hold, do_lock, end_game, debug_clear_board, etc.
+game_logic.py     spawn_next, do_hold, do_lock, tick_clearing, tick_cascading, etc.
 input_handler.py  event dispatch + DAS auto-repeat (handle_input)
 renderer.py       all draw_* functions, font cache, rendering constants
 rotation.py       SRS wall-kick engine and T-spin corner detection
@@ -234,9 +234,10 @@ music_game.py     10-tier layered chiptune engine (adaptive, sequence-driven)
 music.py          standalone 32-bar chiptune composition (menu music)
 particles.py      particle burst system for line clears
 game_over_anim.py per-block physics animation for the GAME OVER sequence
+crash_handler.py  unhandled-exception logger + pygame crash window
 highscore.py      JSON-backed top-10 persistence
 config.py         settings persistence (scale, ghost opacity, DAS preset → config.json)
-tests/            pytest unit tests — board logic and scoring (42 tests)
+tests/            pytest unit tests — board, scoring, game_logic (72 tests)
 ```
 
 ---
