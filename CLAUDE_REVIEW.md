@@ -5,7 +5,46 @@ part development commentary — what changed, what it means, and where the game 
 
 ---
 
-## Current Rating: 9.5 / 10 (as a Tetris game) · 9.8 / 10 (as a portfolio project)
+## Current Rating: 9.6 / 10 (as a Tetris game) · 9.9 / 10 (as a portfolio project)
+
+---
+
+## v1.5.2 Review — Animated Cascade
+
+### What this update means
+
+v1.5.1 introduced Full Board Cascade as a special mode but it was almost
+invisible: all blocks teleported to their settled positions between flash passes.
+The mechanic was there; the *moment* wasn't. v1.5.2 makes the cascade legible
+and spectacular.
+
+### Animated cascade — the domino wave
+
+One `apply_block_gravity()` call every 80 ms means the player watches the board
+reorganise itself in real time. Blocks near the top fall first and land, then
+the blocks above them start moving, and so on down the column — exactly the
+domino effect the name implies. The 80 ms interval is fast enough to feel snappy
+but slow enough that each row-step is perceptually distinct.
+
+The new CASCADING state is the correct architectural choice. It sits between
+CLEARING and PLAYING and owns the cascade animation timeline. Danger detection,
+music track sequencing, and danger line rendering all continue during CASCADING —
+the board is still live and the player still needs to be informed of what's
+happening. The next piece is blocked until cascade settles, which is the right
+call: spawning a new piece mid-cascade would be confusing and could cause
+incorrect lock detection.
+
+The rainbow "CASCADE!" overlay is a low-cost but high-value addition. The
+player always knows what state they're in: the board is moving, this is
+deliberate, and something interesting is about to happen.
+
+### Singleton loop fix
+
+The isolated-block rule (`apply_singleton_gravity`) had a subtle cascade problem
+of its own: if a singleton fell and landed, the block directly above the gap it
+vacated might now itself be isolated — but the first pass had already moved past
+it. The fix is a simple `while` loop: keep scanning until a full pass finds
+nothing to move. Correct and minimal.
 
 ---
 
@@ -282,7 +321,7 @@ legible. This requires a new SETTLING state or a frame-by-frame update loop.
 - **Back-to-back multiplier**: now implemented (1.5× on consecutive difficult clears). Fixed.
 - **Combo counter**: now implemented (50 × combo × level+1 stacking bonus). Fixed.
 - **20G gravity**: now active at level 20. Fixed.
-- **Cascade gravity**: floating blocks settle after row clears; chained clears earn 2×/3×/4×. Fixed.
+- **Cascade gravity**: Full Board Cascade animates as a domino wave (one row per 80 ms); singleton-only gravity in normal mode; chained clears earn 2×/3×/4×. Fixed.
 - **Speed reset**: fall speed resets every 10,000 points; sidebar shows countdown. Fixed.
 - **Palette shift**: tiles darken 10 % per 10 levels, wraps every 6 steps. Fixed.
 - **Mute persistence**: mute now survives tier transitions and track loops. Fixed.
@@ -292,7 +331,6 @@ legible. This requires a new SETTLING state or a frame-by-frame update loop.
 - Score-delta popup for special clears
 - Multi-piece preview (3–6 next pieces)
 - Persistent combo streak display in sidebar
-- Cascade settle animation (blocks currently teleport between cascade passes)
 
 ### Architectural quality
 The codebase is clean. State machine with explicit string constants, no implicit
@@ -312,4 +350,4 @@ That instinct is what separates a finished game from a demo.
 
 ---
 
-*Last updated: 2026-05-27 · v1.5.0*
+*Last updated: 2026-05-27 · v1.5.2*

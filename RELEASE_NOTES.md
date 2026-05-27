@@ -2,6 +2,55 @@
 
 ---
 
+## v1.5.2 — Animated Cascade, CASCADING State, CPU Safety
+*2026-05-27*
+
+### Added
+- **Animated full-cascade** — Full Board Cascade mode now plays out as a domino
+  wave: one row of blocks falls every 80 ms instead of all blocks teleporting
+  instantly. The next piece is blocked until the cascade fully settles.
+- **CASCADING game state** — new state between CLEARING and PLAYING that owns
+  the cascade animation. Danger detection, music track sequencing, danger line,
+  and board rendering all run correctly during cascade.
+- **"CASCADE!" overlay** — rainbow-cycling text centered on the board during the
+  cascade animation so the player always knows what they're watching.
+- **Singleton cascade loop fix** — `apply_singleton_gravity()` now loops until
+  no more isolated blocks can fall. Previously a singleton that fell and exposed
+  a second singleton above it would leave the upper block floating.
+
+### Files changed
+- `main.py` — CASCADING state handler, CASCADE overlay draw, all state-check
+  guards updated to include CASCADING
+
+---
+
+## v1.5.1 — Cascade Model, Speed Reset Polish, Sidebar Cleanup
+*2026-05-27*
+
+### Added
+- **Full Board Cascade mode** — toggles on/off with each speed reset. In this
+  mode, after a line clear every block that has empty space below it falls
+  (domino gravity). Normal mode uses singleton-only gravity: only isolated
+  blocks with no orthogonal neighbours fall.
+- **Reset multiplier** (`reset_bonus_mult`) — starts at 1.0 and increases +0.1
+  per speed reset. Applied to all line-clear scores. Sidebar shows a ×N.N badge
+  next to the speed tier.
+- **Cascade bonus** — when the cascade fully settles, awards
+  `CASCADE_BONUS_PER_RESET × speed_reset_count` points. Bonus base increases
+  by 5,000 per reset.
+- **Space-only pause resume** — SPACE is the only key that resumes from PAUSED.
+  All other keys are silently ignored (was "any key").
+- **"RESET IN N pts" countdown** — replaces the confusing "RST 0 pts" label.
+  Turns orange below 2,000 pts remaining, red below 500.
+- **Level + Lines combined row** — sidebar fits both onto a single compact line.
+
+### Files changed
+- `board.py` — `apply_singleton_gravity()` added
+- `main.py` — `full_cascade_mode`, `reset_bonus_mult`, cascade bonus, PAUSED
+  handler, sidebar layout, CLEARING handler, `_start_new_game()`
+
+---
+
 ## v1.5.0 — Cascade Gravity, Speed Reset, Palette Shift, Page Volume
 *2026-05-27*
 

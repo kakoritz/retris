@@ -37,6 +37,7 @@ SETTINGS       = "settings"
 GAME_OVER_ANIM = "game_over_anim"
 PAUSED         = "paused"
 MUSIC_TEST     = "music_test"
+CASCADING      = "cascading"   # animated full-board gravity (full cascade mode)
 
 _MUSIC_END = pygame.USEREVENT + 1   # fired by mixer when a track finishes naturally
 
@@ -92,6 +93,10 @@ PAGE_VOL_STEP = 5   # % per keypress
 
 # ── speed-reset flash overlay ─────────────────────────────────────────────────
 SPEED_RESET_FLASH_DURATION = 2500   # ms — "SPEED RESET!" drawn on board
+
+# ── full board cascade animation ──────────────────────────────────────────────
+CASCADE_STEP_MS   = 80    # ms between each one-row gravity wave
+CASCADE_BONUS_PER_RESET = 5000   # flat score bonus per reset count when cascade completes
 
 # ── sidebar popup ─────────────────────────────────────────────────────────────
 POPUP_DURATION    = 2000   # ms
@@ -952,6 +957,9 @@ def main():
     # speed-reset overlay
     speed_reset_flash_timer: int = 0
 
+    # full cascade animation
+    cascade_anim_timer: int = 0
+
     def _spawn_next():
         nonlocal current, next_piece, lock_timer, lock_move_count, hold_used
         nonlocal last_action
@@ -1174,7 +1182,7 @@ def main():
             # After on_music_end() the new track resets its volume to _game_vol,
             # so we must re-apply the 90 % reduction if we're still paused.
             if (event.type == _MUSIC_END
-                    and state in (PLAYING, CLEARING, PAUSED)):
+                    and state in (PLAYING, CLEARING, CASCADING, PAUSED)):
                 music_game.on_music_end()
                 if state == PAUSED:
                     pygame.mixer.music.set_volume(pre_pause_vol * 0.10)
@@ -1442,7 +1450,7 @@ def main():
         # ── danger detection → tier-1 tension music + warning line ──────────
         # Row indices 0-9 are the top half of the board.  Any filled cell there
         # triggers tension mode; clearing back below row 10 releases it.
-        if state in (PLAYING, CLEARING):
+        if state in (PLAYING, CLEARING, CASCADING):
             danger = any(any(row) for row in board.grid[:10])
             music_game.set_danger(danger)
 
@@ -1632,12 +1640,54 @@ def main():
                     #   every block with empty space below it falls — the
                     #   "Full Board Cascade Effect."
                     if full_cascade_mode:
-                        board.settle_blocks()
+                        # Animated domino fall — hand off to CASCADING state.
+                        cascade_anim_timer = 0
+                        state = CASCADING
                     else:
-                        board.apply_singleton_gravity()
+                        # Loop until no more isolated blocks can fall — a singleton
+                        # dropping away from its neighbour can expose a new singleton
+                        # above it.
+                        while board.apply_singleton_gravity():
+                            pass
+                        cascade_rows = board.full_rows()
+                        if cascade_rows:
+                            cascade_level  += 1
+                            full_set        = set(cascade_rows)
+                            wow_active      = all(
+                                all(c == 0 for c in board.grid[r])
+                                for r in range(ROWS) if r not in full_set
+                            )
+                            clear_rows      = full_set
+                            clear_count     = len(cascade_rows)
+                            clear_timer     = 0
+                            clear_flash_idx = 0
+                            clear_cells     = [
+                                (col, row_i, board.grid[row_i][col])
+                                for row_i in cascade_rows for col in range(COLS)
+                                if board.grid[row_i][col]
+                            ]
+                            audio.play(min(clear_count, 4))
+                        else:
+                            first_clear_tetris = False
+                            cascade_level      = 0
+                            if _spawn_next():
+                                state = PLAYING
+                            else:
+                                _end_game()
+
+        # ── full board cascade animation ──────────────────────────────────────
+        # Blocks fall one row at a time on a timer — domino effect.
+        # When nothing can fall, check for newly-formed full rows.
+        elif state == CASCADING:
+            cascade_anim_timer += dt
+            if cascade_anim_timer >= CASCADE_STEP_MS:
+                cascade_anim_timer -= CASCADE_STEP_MS
+                if board.apply_block_gravity():
+                    pass   # still falling — next frame will move the next wave
+                else:
+                    # Nothing moved — cascade is complete.
                     cascade_rows = board.full_rows()
                     if cascade_rows:
-                        # Re-enter CLEARING for the cascade pass.
                         cascade_level  += 1
                         full_set        = set(cascade_rows)
                         wow_active      = all(
@@ -1654,8 +1704,13 @@ def main():
                             if board.grid[row_i][col]
                         ]
                         audio.play(min(clear_count, 4))
-                        # state stays CLEARING — next frame re-enters this block
+                        state = CLEARING
                     else:
+                        # Cascade settled with no new rows — award cascade bonus
+                        # and spawn the next piece.
+                        if speed_reset_count > 0:
+                            score += CASCADE_BONUS_PER_RESET * speed_reset_count
+                            best   = max(best, score)
                         first_clear_tetris = False
                         cascade_level      = 0
                         if _spawn_next():
@@ -1694,7 +1749,7 @@ def main():
         if state == MENU:
             draw_menu(screen, blink_on)
 
-        elif state in (PLAYING, CLEARING, GAME_OVER, GAME_OVER_ANIM, PAUSED):
+        elif state in (PLAYING, CLEARING, CASCADING, GAME_OVER, GAME_OVER_ANIM, PAUSED):
             screen.fill(BG_COLOR)
 
             # Palette phase: darkens tiles by 10 % per 10 levels, wraps every 6 steps.
@@ -1713,7 +1768,7 @@ def main():
 
             # Danger warning line — drawn over the board but under the live piece
             # so the player can still see the boundary while actively placing blocks.
-            if danger and state in (PLAYING, CLEARING, PAUSED):
+            if danger and state in (PLAYING, CLEARING, CASCADING, PAUSED):
                 _draw_danger_line(bsurf)
 
             if state in (PLAYING, PAUSED):
@@ -1751,7 +1806,20 @@ def main():
                 fl.fill((255, 255, 255, alpha))
                 bsurf.blit(fl, (0, 0))
 
-            if state == GAME_OVER:
+            if state == CASCADING:
+                h = (pygame.time.get_ticks() / 120) % 1.0
+                rgb = tuple(int(c * 255) for c in colorsys.hsv_to_rgb(h, 1.0, 1.0))
+                cas_t = _font(30).render("CASCADE!", True, rgb)
+                cx = BOARD_WIDTH // 2 - cas_t.get_width() // 2
+                cy = BOARD_HEIGHT // 2 - cas_t.get_height() // 2
+                pad = 8
+                bg = pygame.Surface((cas_t.get_width() + pad * 2,
+                                     cas_t.get_height() + pad * 2), pygame.SRCALPHA)
+                bg.fill((0, 0, 0, 160))
+                bsurf.blit(bg, (cx - pad, cy - pad))
+                bsurf.blit(cas_t, (cx, cy))
+
+            elif state == GAME_OVER:
                 draw_game_over_overlay(bsurf, score)
             elif state == GAME_OVER_ANIM:
                 go_anim.draw(bsurf)
