@@ -52,6 +52,13 @@ FLASH_TOTAL = {1: 2,  2: 4,  3: 6,  4: 10}   # phases per count
 FLASH_COLOR_NORM = (255, 255, 255)
 FLASH_COLOR_QUAD = (255, 215,   0)
 
+# Perfect-clear (WOW) flash — longer and faster than a Tetris
+FLASH_MS_WOW    = 48    # ms per phase
+FLASH_TOTAL_WOW = 18    # number of on/off phases
+
+WOW_BONUS          = 5000   # flat score multiplied by (level + 1)
+WOW_POPUP_DURATION = 4500   # ms — WOW popup lingers much longer than normal
+
 # ── sidebar popup ─────────────────────────────────────────────────────────────
 POPUP_DURATION    = 2000   # ms
 SHAKE_DURATION    = 380    # ms  (quad clear only)
@@ -101,10 +108,12 @@ _PAUSE_BLOCK = 12   # px block size for PAUSE text
 _PAUSE_CELL  = 14   # block + 2 px gap
 
 POPUP_STYLES = {
-    1: ("Nice!",       (100, 255, 120), 17),
-    2: ("Great!",      (255, 235,  60), 20),
-    3: ("Fantastic!",  (255, 150,  50), 20),
-    4: ("TETRIS!",      None,           24),   # None = rainbow
+    # count 0 is reserved for the perfect-clear WOW popup (board-centered, rainbow)
+    0: ("!! W O W !!",  None,           32),
+    1: ("Nice!",        (100, 255, 120), 17),
+    2: ("Great!",       (255, 235,  60), 20),
+    3: ("Fantastic!",   (255, 150,  50), 20),
+    4: ("TETRIS!",       None,           24),   # None = rainbow
 }
 
 _font_cache: dict = {}
@@ -133,12 +142,27 @@ def _try_rotate(board: Board, piece: Piece, rot: list) -> bool:
 def draw_board(surf: pygame.Surface, board: Board,
                flash_rows: set | None = None,
                flash_on: bool = False,
-               flash_quad: bool = False) -> None:
-    fc = FLASH_COLOR_QUAD if flash_quad else FLASH_COLOR_NORM
+               flash_quad: bool = False,
+               wow_on: bool = False) -> None:
+    # Determine the flash colour for this frame.
+    # WOW (perfect clear) cycles a fast rainbow hue across every cell.
+    # Normal Tetris clears use white; quad (4-line) uses gold.
+    if wow_on and flash_on:
+        h = (pygame.time.get_ticks() / 90) % 1.0   # ~11 Hz hue cycle
+        r, g, b = colorsys.hsv_to_rgb(h, 1.0, 1.0)
+        fc = (int(r * 255), int(g * 255), int(b * 255))
+    elif flash_quad:
+        fc = FLASH_COLOR_QUAD
+    else:
+        fc = FLASH_COLOR_NORM
+
     for gy, row in enumerate(board.grid):
         for gx, val in enumerate(row):
             px, py = gx * CELL_SIZE, gy * CELL_SIZE
-            if flash_rows and gy in flash_rows and flash_on:
+            if wow_on and flash_on:
+                # Perfect clear: the entire board (every cell) flashes rainbow.
+                pygame.draw.rect(surf, fc, (px, py, CELL_SIZE - 1, CELL_SIZE - 1))
+            elif flash_rows and gy in flash_rows and flash_on:
                 pygame.draw.rect(surf, fc, (px, py, CELL_SIZE - 1, CELL_SIZE - 1))
             elif val:
                 surf.blit(get_block(val), (px, py))
@@ -199,40 +223,62 @@ def draw_popup(surf: pygame.Surface, count: int, timer: int) -> None:
     if timer <= 0 or count not in POPUP_STYLES:
         return
     text_str, base_color, base_size = POPUP_STYLES[count]
-    elapsed = POPUP_DURATION - timer
+
+    # WOW popup (count == 0) uses its own duration and board-centred position.
+    is_wow   = (count == 0)
+    duration = WOW_POPUP_DURATION if is_wow else POPUP_DURATION
+    elapsed  = duration - timer
 
     # Float upward over lifetime
-    y = 440 - int((elapsed / POPUP_DURATION) * 22)
+    if is_wow:
+        y = BOARD_HEIGHT // 2 - 18 - int((elapsed / duration) * 40)
+    else:
+        y = 440 - int((elapsed / POPUP_DURATION) * 22)
 
-    # Fade out in last 500 ms
-    alpha = 1.0 if timer > 500 else timer / 500
+    # Fade out in last 600 ms
+    alpha = 1.0 if timer > 600 else timer / 600
 
     # Pop: bigger font for the first 200 ms
     size = base_size + (5 if elapsed < 200 else 0)
 
-    # Vivid color (before alpha applied)
-    if base_color is None:   # rainbow for TETRIS
-        h = (pygame.time.get_ticks() / 450) % 1.0
-        r, g, b = colorsys.hsv_to_rgb(h, 0.9, 1.0)
+    # Vivid colour — None means rainbow cycling
+    if base_color is None:
+        # WOW cycles faster than TETRIS for extra energy
+        speed = 200 if is_wow else 450
+        h = (pygame.time.get_ticks() / speed) % 1.0
+        r, g, b = colorsys.hsv_to_rgb(h, 1.0, 1.0)
         vivid = (int(r * 255), int(g * 255), int(b * 255))
     else:
         vivid = base_color
 
     color = tuple(int(c * alpha) for c in vivid)
+    f     = _font(size)
+    tw, th = f.size(text_str)
 
-    # Coloured background bar for count ≥ 2
-    if count >= 2:
-        f = _font(size)
-        tw, th = f.size(text_str)
-        pad_x, pad_y = 10, 4
+    if is_wow:
+        # WOW: large glowing rectangle centred on the board
+        pad_x, pad_y = 18, 8
         bw, bh = tw + pad_x * 2, th + pad_y * 2
-        bx = BOARD_WIDTH + (SIDEBAR_WIDTH - bw) // 2
-        bg = tuple(int(c * 0.22 * alpha) for c in vivid)
-        pygame.draw.rect(surf, bg, (bx, y - pad_y, bw, bh), border_radius=4)
-
-    t = _font(size).render(text_str, True, color)
-    x = BOARD_WIDTH + (SIDEBAR_WIDTH - t.get_width()) // 2
-    surf.blit(t, (x, y))
+        bx = BOARD_WIDTH // 2 - bw // 2
+        bg = tuple(int(c * 0.30 * alpha) for c in vivid)
+        pygame.draw.rect(surf, bg, (bx, y - pad_y, bw, bh), border_radius=6)
+        # Drop shadow for legibility over the board
+        shadow = tuple(int(c * 0.25 * alpha) for c in vivid)
+        t = f.render(text_str, True, shadow)
+        surf.blit(t, (BOARD_WIDTH // 2 - tw // 2 + 2, y + 2))
+        t = f.render(text_str, True, color)
+        surf.blit(t, (BOARD_WIDTH // 2 - tw // 2, y))
+    else:
+        # Normal popup: sidebar-right column
+        if count >= 2:
+            pad_x, pad_y = 10, 4
+            bw, bh = tw + pad_x * 2, th + pad_y * 2
+            bx = BOARD_WIDTH + (SIDEBAR_WIDTH - bw) // 2
+            bg = tuple(int(c * 0.22 * alpha) for c in vivid)
+            pygame.draw.rect(surf, bg, (bx, y - pad_y, bw, bh), border_radius=4)
+        t = f.render(text_str, True, color)
+        x = BOARD_WIDTH + (SIDEBAR_WIDTH - t.get_width()) // 2
+        surf.blit(t, (x, y))
 
 
 # ── sidebar ───────────────────────────────────────────────────────────────────
@@ -415,7 +461,7 @@ def draw_pause(surf: pygame.Surface, blink_on: bool) -> None:
     cx = SCREEN_WIDTH // 2
     t = _font(15).render("PRESS  ANY  KEY  TO  RESUME", True, WHITE)
     surf.blit(t, (cx - t.get_width() // 2, 332))
-    t = _font(12, bold=False).render("ESC  —  exit to menu", True, BORDER_COLOR)
+    t = _font(12, bold=False).render("Q  —  exit to menu", True, BORDER_COLOR)
     surf.blit(t, (cx - t.get_width() // 2, 356))
 
 
@@ -677,6 +723,7 @@ def main():
     hd_flash_timer: int  = 0
     clear_cells:    list = []
     danger:         bool = False   # True when any block occupies the top-10 rows
+    wow_active:     bool = False   # True during a perfect-clear (board-empty) event
 
     def _spawn_next():
         nonlocal current, next_piece
@@ -714,10 +761,14 @@ def main():
             if event.type == pygame.QUIT:
                 pygame.quit(); sys.exit()
 
-            # Music track finished — advance sequence
+            # Music track finished — advance sequence.
+            # After on_music_end() the new track resets its volume to _game_vol,
+            # so we must re-apply the 90 % reduction if we're still paused.
             if (event.type == _MUSIC_END
                     and state in (PLAYING, CLEARING, PAUSED)):
                 music_game.on_music_end()
+                if state == PAUSED:
+                    pygame.mixer.music.set_volume(pre_pause_vol * 0.10)
 
             # KEYUP: track DAS key releases regardless of state
             if event.type == pygame.KEYUP:
@@ -744,8 +795,9 @@ def main():
             if state == MENU:
                 if event.key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP_ENTER):
                     board, current, next_piece, score, lines, level, fall_timer = new_game()
-                    best  = highscore.best()
+                    best        = highscore.best()
                     popup_count = popup_timer = 0
+                    wow_active  = False
                     _reset_das()
                     audio.play_spawn(current.color_id)
                     music.fadeout(400)
@@ -798,7 +850,13 @@ def main():
                     fall_timer = 0
                     full = board.full_rows()
                     if full:
-                        clear_rows      = set(full)
+                        full_set        = set(full)
+                        # Perfect clear: every row outside the clearing set is empty.
+                        wow_active      = all(
+                            all(c == 0 for c in board.grid[r])
+                            for r in range(ROWS) if r not in full_set
+                        )
+                        clear_rows      = full_set
                         clear_count     = len(full)
                         clear_timer     = 0
                         clear_flash_idx = 0
@@ -819,8 +877,10 @@ def main():
                     state = post_anim_state
 
             # ── PAUSED ────────────────────────────────────────────────────────
+            # Q is the deliberate exit key; every other key (including Esc) resumes.
+            # This prevents accidentally quitting to the menu mid-game.
             elif state == PAUSED:
-                if event.key == pygame.K_ESCAPE:
+                if event.key == pygame.K_q:
                     music_game.stop()
                     music.start_menu()
                     state = MENU
@@ -965,7 +1025,13 @@ def main():
                     _reset_das()
                     full = board.full_rows()
                     if full:
-                        clear_rows      = set(full)
+                        full_set        = set(full)
+                        # Perfect clear: every row outside the clearing set is empty.
+                        wow_active      = all(
+                            all(c == 0 for c in board.grid[r])
+                            for r in range(ROWS) if r not in full_set
+                        )
+                        clear_rows      = full_set
                         clear_count     = len(full)
                         clear_timer     = 0
                         clear_flash_idx = 0
@@ -985,22 +1051,33 @@ def main():
         # ── line-clear animation ──────────────────────────────────────────────
         elif state == CLEARING:
             clear_timer += dt
-            fms = FLASH_MS.get(clear_count, 80)
+            # WOW (perfect clear) gets a longer, faster rainbow flash.
+            fms   = FLASH_MS_WOW    if wow_active else FLASH_MS.get(clear_count, 80)
+            ftotal = FLASH_TOTAL_WOW if wow_active else FLASH_TOTAL.get(clear_count, 2)
             if clear_timer >= fms:
                 clear_timer -= fms
                 clear_flash_idx += 1
-                if clear_flash_idx >= FLASH_TOTAL.get(clear_count, 2):
-                    # animation done — score, clear, spawn
+                if clear_flash_idx >= ftotal:
+                    # Animation done — tally score, remove rows, spawn next piece.
                     lines  += clear_count
                     score  += SCORE_TABLE.get(clear_count, 0) * (level + 1)
+                    if wow_active:
+                        # Bonus on top of the normal line-clear score.
+                        score += WOW_BONUS * (level + 1)
                     level   = lines // 10 + 1
                     best    = max(best, score)
                     board.clear_lines()
-                    particles += spawn_particles(clear_cells, clear_count == 4)
-                    if clear_count == 4:
+                    # Always use maximum particles + shake for WOW.
+                    particles += spawn_particles(clear_cells, wow_active or clear_count == 4)
+                    if wow_active or clear_count == 4:
                         shake_timer = SHAKE_DURATION
-                    popup_count = clear_count
-                    popup_timer = POPUP_DURATION
+                    if wow_active:
+                        popup_count = 0                  # WOW popup style
+                        popup_timer = WOW_POPUP_DURATION
+                        wow_active  = False
+                    else:
+                        popup_count = clear_count
+                        popup_timer = POPUP_DURATION
                     if _spawn_next():
                         state = PLAYING
                     else:
@@ -1033,7 +1110,8 @@ def main():
             fr = clear_rows if state == CLEARING else None
             fo = (clear_flash_idx % 2 == 0) if state == CLEARING else False
             fq = (clear_count == 4) if state == CLEARING else False
-            draw_board(bsurf, board, flash_rows=fr, flash_on=fo, flash_quad=fq)
+            fw = wow_active if state == CLEARING else False
+            draw_board(bsurf, board, flash_rows=fr, flash_on=fo, flash_quad=fq, wow_on=fw)
 
             # Danger warning line — drawn over the board but under the live piece
             # so the player can still see the boundary while actively placing blocks.
