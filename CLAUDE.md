@@ -4,9 +4,27 @@ Standard protocol for every code change, no exceptions.
 
 ---
 
-## Push Protocol
+## Branch & Push Protocol
 
-Before every `git push`, all five documents must be updated to reflect the changes:
+### Branching rules
+- **All work goes to `development`** — never commit directly to `main`
+- `main` is the public release branch; it is protected and requires a PR to merge into
+- CI (GitHub Actions) runs `pytest tests/ -q` on every push to `development` and on every PR targeting `main`
+- Only open a PR from `development` → `main` when the feature/fix is QA-complete and CI is green
+- Branch protection on `main` blocks force-pushes and direct pushes; PRs require CI to pass
+
+### Workflow summary
+```
+work locally on development
+  → git push origin development
+  → CI runs automatically
+  → open PR development → main when ready
+  → merge PR (CI must be green)
+```
+
+### Docs to update before opening a PR to main
+
+Before every PR from `development` → `main`, all five documents must be updated to reflect the changes:
 
 | File | Purpose |
 |------|---------|
