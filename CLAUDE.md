@@ -16,15 +16,16 @@ Standard protocol for every code change, no exceptions.
 ### Workflow summary
 ```
 work locally on development
+  → update the five docs below (still on development)
   → git push origin development
   → CI runs automatically
-  → open PR development → main when ready
+  → open PR development → main (code + docs already committed)
   → merge PR (CI must be green)
 ```
 
-### Docs to update before opening a PR to main
+### Docs to update on development before opening a PR
 
-Before every PR from `development` → `main`, all five documents must be updated to reflect the changes:
+All five documents must be committed to `development` as part of the change — the PR should arrive at main already complete:
 
 | File | Purpose |
 |------|---------|
