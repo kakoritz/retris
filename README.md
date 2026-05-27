@@ -1,6 +1,6 @@
-# RetroTetris
+# KAKORITZ's T3TR1S
 
-A faithful NES-style Tetris clone built from scratch in Python and Pygame — no image or audio files required. All sprites, sounds, and music are generated procedurally at runtime.
+A custom NES-style T3TR1S clone built from scratch in Python and Pygame — no image or audio files required. All sprites, sounds, and music are generated procedurally at runtime.
 
 ## Features
 

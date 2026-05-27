@@ -10,9 +10,10 @@ try:
 except ImportError:
     _HAS_NP = False
 
-_RATE   = 44100
-_sounds = None   # rotate, move, lock, hard_drop, 1-4 (line clears)
-_spawns = None   # 1-7 (per-piece-color spawn tones)
+_RATE      = 44100
+_sounds    = None   # rotate, move, lock, hard_drop, 1-4 (line clears)
+_spawns    = None   # 1-7 (per-piece-color spawn tones)
+_sfx_scale = 1.0    # 0-1 multiplier applied to all SFX sounds
 
 
 def pre_init() -> None:
@@ -98,12 +99,42 @@ def _build_spawns() -> dict:
 
 # ── public API ────────────────────────────────────────────────────────────────
 
+def prime() -> None:
+    """Pre-build sound tables so set_sfx_volume takes effect immediately."""
+    global _sounds, _spawns, _boms
+    if not _HAS_NP or not pygame.mixer.get_init():
+        return
+    if _sounds is None:
+        _sounds = _build()
+        for s in _sounds.values():
+            s.set_volume(_sfx_scale)
+    if _spawns is None:
+        _spawns = _build_spawns()
+        for s in _spawns.values():
+            s.set_volume(_sfx_scale)
+    if _boms is None:
+        _boms = _build_boms()
+        for s in _boms.values():
+            s.set_volume(_sfx_scale)
+
+
+def set_sfx_volume(scale: float) -> None:
+    global _sfx_scale
+    _sfx_scale = max(0.0, min(1.0, scale))
+    for table in (_sounds, _spawns, _boms):
+        if table:
+            for s in table.values():
+                s.set_volume(_sfx_scale)
+
+
 def play(key) -> None:
     global _sounds
     if not _HAS_NP or not pygame.mixer.get_init():
         return
     if _sounds is None:
         _sounds = _build()
+        for s in _sounds.values():
+            s.set_volume(_sfx_scale)
     snd = _sounds.get(key)
     if snd:
         snd.play()
@@ -115,6 +146,42 @@ def play_spawn(color_id: int) -> None:
         return
     if _spawns is None:
         _spawns = _build_spawns()
+        for s in _spawns.values():
+            s.set_volume(_sfx_scale)
     snd = _spawns.get(color_id)
+    if snd:
+        snd.play()
+
+
+# ── game-over block-land BOM sounds ──────────────────────────────────────────
+
+_boms = None
+
+_BOM_STARTS = [340, 310, 280, 255, 230, 205, 185, 165]   # sweep start Hz per letter
+
+
+def _build_boms() -> dict:
+    out = {}
+    for k, p in enumerate(_BOM_STARTS, 1):
+        hit  = _sweep(p, int(p * 0.18), 200, _V * 3.0, 0.12)
+        body = _note(int(p * 0.35), 120, _V * 1.8, 5.0)
+        n    = max(len(hit), len(body))
+        data = np.zeros(n)
+        data[:len(hit)]  += hit
+        data[:len(body)] += body
+        out[k] = _sound(data)
+    return out
+
+
+def play_bom(idx: int) -> None:
+    """Deep impact thud for game-over letter drops (idx 1-8)."""
+    global _boms
+    if not _HAS_NP or not pygame.mixer.get_init():
+        return
+    if _boms is None:
+        _boms = _build_boms()
+        for s in _boms.values():
+            s.set_volume(_sfx_scale)
+    snd = _boms.get(idx)
     if snd:
         snd.play()
