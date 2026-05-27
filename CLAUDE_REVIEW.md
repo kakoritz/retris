@@ -9,6 +9,18 @@ part development commentary — what changed, what it means, and where the game 
 
 ---
 
+## v1.8.1 Review — Cascade Timing Respect
+
+One-line change with a real feel difference. Tying cascade wave speed to
+`fall_speed(speed_tier)` instead of a fixed 80 ms means the cascade reads as part
+of the game's rhythm rather than a constant animation. Early game: the wave is slow
+enough to watch and enjoy. High speed tiers: it accelerates proportionally, keeping
+tension tight. The 300 ms cap prevents absurdly slow cascades at tier 1. The
+architecture was already bottom-up (apply_block_gravity scans from the floor up);
+the timing was the only thing that needed to change. Correct and non-invasive.
+
+---
+
 ## v1.8.0 Review — Polish, Tests, and a Genuinely New Mechanic
 
 ### Color Clear — the best new mechanic in this update
@@ -57,6 +69,38 @@ main.py is ~1500 lines. Still a monolith. The test suite now covers board.py and
 scoring constants independently, which is the right foundation for a future split.
 The game is portfolio-ready as-is; a renderer.py + game.py refactor would make it
 engineering-review-ready.
+
+### Architecture note — the main.py split decision
+
+The question of splitting main.py was considered seriously. The honest analysis:
+
+**Pros of splitting now**
+- Signals engineering maturity to a code reviewer (game.py for state logic, renderer.py
+  for drawing, ui.py for overlays)
+- Reduces grep noise when navigating — a 1,500-line file is genuinely awkward
+- If the game ever grows new screens or modes, split modules would make additions safer
+
+**Cons of splitting now**
+- No player sees it. The game plays identically either way.
+- Solo project with no collaborators means the "maintainability" argument is mostly
+  theoretical
+- Real risk: state is tightly coupled across the draw/update boundary. A naive split
+  produces modules that import each other in a cycle, or that require threading all
+  state as function arguments. Getting this right takes a session of careful work that
+  delivers zero visible improvement.
+- The portfolio already has stronger signals: a working game, 42 passing tests, a
+  proper design doc, a layered audio engine, and commented scoring logic. A file split
+  adds a weak signal on top of strong ones.
+
+**When splitting would be worth it**
+- You are actively job-hunting and expect a code reviewer to read main.py in detail
+- You plan to add a second game mode, a level editor, or any feature that adds a new
+  top-level state with significant rendering logic — that would be the natural seam
+- A collaborator joins and is confused by the file size
+
+**Decision: deferred.** The current structure is acknowledged debt, not ignored debt.
+The test suite provides the real safety net. If either trigger condition above appears,
+the split should happen before any new feature work — not during it.
 
 ---
 

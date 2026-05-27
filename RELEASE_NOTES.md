@@ -2,6 +2,18 @@
 
 ---
 
+## v1.8.1 — Dynamic Cascade Timing
+*2026-05-27*
+
+### Changed
+- **Cascade animation speed now matches current fall speed** — the Full Board Cascade
+  wave rate is tied to `fall_speed(speed_tier)` instead of a fixed 80 ms. At the
+  start of a game the domino wave is slow and satisfying; as speed increases the
+  cascade accelerates proportionally. Capped at 300 ms to prevent extremely slow
+  cascades at the lowest speed tiers.
+
+---
+
 ## v1.8.0 — Color Clear, Stats, DAS Settings, Combo/Level UX, Drop Scoring, Tests
 *2026-05-27*
 

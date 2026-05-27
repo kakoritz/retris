@@ -191,10 +191,12 @@ uncommon enough to feel rare, achievable enough to be a legitimate strategy.
 After every line clear, blocks that are now floating fall:
 
 - **Normal mode:** all floating blocks settle instantly (full block gravity, no bonus).
-- **Full Board Cascade mode:** blocks fall one row per 80 ms (animated domino wave).
-  New complete rows created by the cascade clear again at an increasing multiplier
-  (2× → 3× → 4×, capped at 4×). A "CASCADE!" rainbow overlay appears on the board
-  during the animation.
+- **Full Board Cascade mode:** blocks fall one row at a rate matching the current
+  fall speed (`fall_speed(speed_tier)`, capped at 300 ms), creating an animated
+  domino wave. The cascade decelerates at low speed tiers (slow, readable) and
+  accelerates as the game intensifies (tight, urgent). New complete rows created
+  by the cascade clear again at an increasing multiplier (2× → 3× → 4×, capped at
+  4×). A "CASCADE!" rainbow overlay appears on the board during the animation.
 
 ---
 

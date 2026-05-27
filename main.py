@@ -1918,8 +1918,9 @@ def main():
         # When nothing can fall, check for newly-formed full rows.
         elif state == CASCADING:
             cascade_anim_timer += dt
-            if cascade_anim_timer >= CASCADE_STEP_MS:
-                cascade_anim_timer -= CASCADE_STEP_MS
+            _cascade_step = min(fall_speed(speed_tier), 300)
+            if cascade_anim_timer >= _cascade_step:
+                cascade_anim_timer -= _cascade_step
                 if board.apply_block_gravity():
                     pass   # still falling — next frame will move the next wave
                 else:
