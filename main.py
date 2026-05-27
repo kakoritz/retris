@@ -133,9 +133,12 @@ def main():
         handle_input(gs, app, dt)
 
         # ── danger detection → tier-1 tension music + warning line ──────────
-        if app.state in (PLAYING, CLEARING, CASCADING):
+        if app.state in (PLAYING, CLEARING, CASCADING) and not app.demo_active:
             gs.danger = any(any(row) for row in gs.board.grid[:10])
             music_game.set_danger(gs.danger)
+        elif app.demo_active and gs.danger:
+            gs.danger = False
+            music_game.set_danger(False)
 
         # ── gravity + lock delay ─────────────────────────────────────────────
         if app.state == PLAYING:
@@ -245,7 +248,7 @@ def main():
             draw_board(bsurf, gs.board, flash_rows=fr, flash_on=fo, flash_quad=fq,
                        wow_on=fw, palette_phase=level_theme)
 
-            if gs.danger and app.state in (PLAYING, CLEARING, CASCADING, PAUSED, DEMO):
+            if gs.danger and not app.demo_active and app.state in (PLAYING, CLEARING, CASCADING, PAUSED):
                 _draw_danger_line(bsurf)
 
             if app.state in (PLAYING, PAUSED, DEMO):
