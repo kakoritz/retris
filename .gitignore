@@ -5,6 +5,8 @@ __pycache__/
 highscores.json
 config.json
 *.wav
+crash_*.log
+crash_latest.log
 
 # editor
 .vscode/

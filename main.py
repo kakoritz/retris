@@ -586,4 +586,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    from crash_handler import run_with_crash_handler
+    run_with_crash_handler(main)
