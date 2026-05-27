@@ -5,7 +5,57 @@ part development commentary — what changed, what it means, and where the game 
 
 ---
 
-## Current Rating: 9.6 / 10 (as a Tetris game) · 9.9 / 10 (as a portfolio project)
+## Current Rating: 9.7 / 10 (as a Tetris game) · 9.9 / 10 (as a portfolio project)
+
+---
+
+## v1.5.3 Review — Feedback Design Pass
+
+### What this update means
+
+v1.5.3 is a focused feedback-design pass: where information appears, how
+strongly events register visually, and whether the player's eye is being
+guided or ignored. These are the changes that distinguish a polished game
+from a functional one.
+
+### Popups on the board — where the player's eyes already are
+
+The popup relocation is the highest-impact change in this update. Previously
+"Nice!" and "TETRIS!" appeared in the sidebar while the player was staring at
+the board. That's the equivalent of a scoreboard in the corner of the arena
+instead of on the field. Floating text that rises from ~60 % down the play
+area sits inside the player's peripheral vision at all times, so feedback
+lands without requiring a head turn. WOW and TETRIS×TETRIS were already doing
+this right; the rest of the system is now consistent with them.
+
+### Scaled particle explosions — feedback proportional to achievement
+
+Two particles per cell for a single, six for a Tetris — this is the correct
+relationship. The Tetris clear already had screen shake and a rainbow popup;
+the particle difference makes the size of the achievement legible in the
+first split second before those other effects register. The scaling is clean:
+each tier up feels bigger, and the Tetris blast now genuinely reads as a
+detonation.
+
+### Cascade fix — predictable gravity
+
+The singleton-only rule was coherent as a design concept but incoherent as
+player experience: "which blocks count as isolated?" is not a question a player
+under time pressure can answer. Replacing it with standard full block gravity
+— all floating blocks settle instantly — makes the post-clear board state
+predictable. The distinction between modes is now: *normal* = instant settle
+(no drama, no bonus), *Full Cascade* = animated domino wave with scoring
+bonuses. That's legible.
+
+### NEXT/HOLD box animation — peripheral memory aids
+
+The hold pulse and next flash are small, but they address a real problem: the
+hold box is invisible until the player actively looks at it, and many players
+forget what's in hold mid-game. A slow cyan pulse on the hold border is
+exactly the right level of signal — present enough to catch the eye in
+peripheral vision, subtle enough to never be distracting. The 220 ms next
+flash similarly serves as a visual tick that something changed without
+demanding attention.
 
 ---
 
@@ -328,7 +378,7 @@ legible. This requires a new SETTLING state or a frame-by-frame update loop.
 - **Tier gap**: all tiers pre-generated at game start; zero silence between transitions. Fixed.
 
 ### Refinements remaining
-- Score-delta popup for special clears
+- Score-delta floating label for special clears (+800, +B2B×1.5, etc.)
 - Multi-piece preview (3–6 next pieces)
 - Persistent combo streak display in sidebar
 
@@ -350,4 +400,4 @@ That instinct is what separates a finished game from a demo.
 
 ---
 
-*Last updated: 2026-05-27 · v1.5.2*
+*Last updated: 2026-05-27 · v1.5.3*

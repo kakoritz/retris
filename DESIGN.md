@@ -124,7 +124,7 @@ entire play area lights up. A plain white overlay was explicitly not the target.
 
 ## 4. Scoring System
 
-All scores are multiplied by `(level + 1)`.
+All line-clear scores are multiplied by `(level + 1)` × `reset_bonus_mult` × danger multiplier.
 
 | Event | Base points | In danger zone |
 |-------|------------|----------------|
@@ -132,11 +132,44 @@ All scores are multiplied by `(level + 1)`.
 | Double | 100 | 200 |
 | Triple | 300 | 600 |
 | Tetris (4 lines) | 1,200 | 2,400 |
+| T-spin single | 800 | 1,600 |
+| T-spin double | 1,200 | 2,400 |
+| T-spin triple | 1,600 | 3,200 |
+| T-spin mini single | 200 | 400 |
+| T-spin mini double | 400 | 800 |
 | WOW bonus (perfect clear) | +5,000 | — |
+| Placement | +10 flat | — |
+
+**Back-to-back (B2B):** consecutive Tetrises or T-spins earn 1.5× on the difficult clear score.
+
+**Combo:** `50 × combo × (level + 1)` stacked per consecutive clear.
+
+**Cascade multiplier:** each cascade chain pass earns 2× → 3× → … on subsequent clears.
+A Tetris immediately followed by a cascade Tetris triggers **TETRIS×TETRIS** at 4× with a
+board-centred rainbow popup.
+
+**Speed reset multiplier:** `reset_bonus_mult` starts at 1.0 and increases +0.1 per reset,
+so continued play at speed is meaningfully rewarded.
 
 Each tier of clear is meaningfully more valuable than the last. The danger zone
 multiplier transforms the top half of the board from a zone to avoid into a zone with
 real upside. The WOW bonus is a capstone reward for an extremely rare feat.
+
+### 4.1 Speed reset
+
+Every 10,000 points the fall-speed tier resets to 1. The sidebar shows a "CASCADE IN N pts"
+countdown that turns orange below 2,000 and red below 500 — a persistent tension driver
+that creates a secondary deadline throughout the game. Each reset also toggles Full Board
+Cascade mode on or off, so the player always knows which mode is coming next.
+
+### 4.2 Cascade gravity
+
+After every line clear, blocks that are now floating fall:
+
+- **Normal mode:** all floating blocks settle instantly (full block gravity, no bonus).
+- **Full Board Cascade mode:** blocks fall one row per 80 ms (animated domino wave).
+  New complete rows created by the cascade clear again with a cascade multiplier.
+  A "CASCADE!" rainbow overlay appears on the board during the animation.
 
 ---
 
@@ -167,12 +200,13 @@ The pause screen is a full overlay with the board visible beneath. The PAUSE tit
 rendered in pixel-art block letters consistent with the game's visual language.
 
 Key mapping:
-- **Any key** resumes
+- **Space** resumes
 - **Q** exits to the main menu
 
-Q is the deliberate exit key. Escape is too easy to press by reflex mid-game. Exiting
-to menu requires a conscious choice, not an accidental keypress. The overlay states
-this distinction explicitly.
+Space is the single unambiguous resume key. Alt/Tab/Meta and other system-adjacent keys
+are explicitly filtered so switching windows does not accidentally resume the game. Q is
+the deliberate exit key — exiting to menu requires a conscious choice, not a reflex
+keypress. The overlay states these keys explicitly.
 
 ### 5.3 Leaderboard & initials entry
 

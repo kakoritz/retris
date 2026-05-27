@@ -2,6 +2,44 @@
 
 ---
 
+## v1.5.3 — Popup Polish, Scaled Explosions, Cascade Fixes, Box Glow
+*2026-05-27*
+
+### Changed
+- **Popups move onto the board** — all clear-feedback text (Nice!, Great!,
+  Fantastic!, TETRIS!, T-SPIN!, cascade labels, etc.) now floats up from
+  ~60 % down the board, centred on the play area. Previously they appeared in
+  the sidebar out of the player's focal point. WOW and TETRIS×TETRIS were
+  already board-centred; everything is now consistent.
+- **Scaled particle explosions** — burst intensity scales with row count.
+  Single: 2 particles/cell. Double: 3. Triple: 4. Tetris: 6, with larger
+  size range and higher velocity cap. Each tier feels meaningfully bigger.
+- **Normal cascade uses full block gravity** — previously only completely
+  isolated (singleton) blocks fell after a line clear in normal mode, which
+  was unpredictable and unsatisfying. Now all floating blocks settle instantly,
+  matching standard Tetris variants. Full Cascade mode (toggled by speed reset)
+  retains its animated domino-wave treatment with cascade scoring bonuses.
+- **Countdown fix** — the "CASCADE IN" counter was stuck at 0 after a speed
+  reset because cascade bonus points were added to `score` after the
+  reset-check while-loop ran. The check now also runs after the cascade bonus
+  is applied.
+- **"RESET IN" → "CASCADE IN"** — sidebar label updated for clarity.
+
+### Added
+- **NEXT box flash** — the NEXT piece box flashes white for ~220 ms each time
+  a new piece is queued, giving a subtle peripheral cue to glance at the preview.
+- **HOLD box pulse** — when a piece is in the hold slot the box border pulses
+  with a slow cyan glow so the player always knows it's available.
+- **Extra box spacing** — more breathing room between labels and piece boxes
+  in the sidebar.
+
+### Fixed
+- SDL offscreen-mode detection — if the X server is full and pygame falls back
+  to the offscreen driver, the game now prints a clear error and exits cleanly
+  instead of running invisible while music plays.
+
+---
+
 ## v1.5.2 — Animated Cascade, CASCADING State, CPU Safety
 *2026-05-27*
 

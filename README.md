@@ -72,7 +72,14 @@ persisted across sessions in `config.json`. Ghost-piece opacity is also persiste
 - **WOW / perfect clear** — clears that leave the board completely empty trigger a
   full-board rainbow flash, a large centred popup, score bonus, and max particles
 - Per-piece spawn tones + move / rotate / lock / hard-drop SFX
-- Sidebar feedback popups: *Nice! → Great! → Fantastic! → TETRIS!* (rainbow)
+- **Board-centred popups** — all clear feedback (Nice! → Great! → Fantastic! → TETRIS! → T-SPIN! → etc.) floats up from the play area, not the sidebar
+- **Scaled particle explosions** — burst intensity grows with row count (1→2→3→4 lines)
+- **Cascade gravity** — floating blocks settle after every line clear; Full Board Cascade mode (animated domino wave + cascade scoring) toggles on at each speed reset
+- **Speed reset** — every 10,000 points fall speed resets to tier 1; score multiplier increases +0.1×; "CASCADE IN N pts" countdown in sidebar
+- **Palette shift** — tiles darken 10 % every 10 levels, cycling through 6 phases
+- **Placement score** — +10 pts per piece placed
+- **HOLD box glow** — slow cyan pulse when a piece is queued so you never forget it's there
+- **NEXT box flash** — brief white outline when the next piece updates
 - Pixel-art GAME OVER animation — independent physics bodies per block
 - High-score board — top 10 persisted to `highscores.json`
 - Initials entry screen on a qualifying score
@@ -150,10 +157,16 @@ python3 main.py
 | `R` | Restart |
 | `M` | Toggle music mute |
 
+### In-game (global)
+| Key | Action |
+|-----|--------|
+| `M` | Toggle music mute |
+| `Page Up` / `Page Down` | Music volume ±5 % |
+
 ### Pause
 | Key | Action |
 |-----|--------|
-| Any key | Resume |
+| `Space` | Resume |
 | `Q` | Exit to menu |
 
 ### Music Preview
