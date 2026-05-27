@@ -5,7 +5,93 @@ part development commentary — what changed, what it means, and where the game 
 
 ---
 
-## Current Rating: 9.5 / 10 (as a Tetris game) · 9.5 / 10 (as a portfolio project)
+## Current Rating: 9.5 / 10 (as a Tetris game) · 9.8 / 10 (as a portfolio project)
+
+---
+
+## v1.5.0 Review — Cascade Gravity, Speed Reset, Palette Shift
+
+### What this update means
+
+v1.4 made the game mechanically complete as a Tetris implementation. v1.5 makes it
+something more: a game with its own identity on top of the Guideline foundation. The
+four new systems (cascade, speed reset, palette, placement score) are all expressions
+of the same design conviction — that the player should always have a reason to keep
+going, and that the board should feel alive.
+
+### Cascade gravity — the right kind of hard
+
+Block gravity after row clears is a mechanic that sounds gimmicky and turns out to be
+deeply strategic. The player now has to think not just about where a piece lands, but
+about what the cleared row leaves behind. A messy stack becomes a liability when overhang
+blocks fall and form unexpected new rows — which the cascade system rewards with
+increasing multipliers (2×, 3×, INSANE!).
+
+The TETRIS×TETRIS event is a particularly nice touch. It requires a specific chain —
+four lines cleared, then four more from the cascade — and rewards it with a 4× multiplier
+and the board-centered rainbow popup treatment. It's rare enough to feel like an
+achievement and common enough to be a legitimate strategy.
+
+The implementation uses `apply_block_gravity()` (bottom-up scan) + `settle_blocks()`
+(loop until stable). This is the correct approach: bottom-up ensures blocks don't
+leapfrog each other in a single pass. The cascade re-uses the existing CLEARING state
+machine, so each cascade pass gets its own flash animation. The player sees the rows
+clear, sees the blocks settle visually (because the next frame renders the settled board
+during the cascade flash), then sees the new clear.
+
+### Speed reset — the dopamine lever
+
+The speed reset mechanic solves a real problem: at high levels, the game becomes
+physically impossible for most players. Rather than the usual "here's how far you got"
+death screen, the player now has a target — 10,000 more points — and a visible
+countdown that turns from green to orange to red as they approach it. The relief of
+a speed reset is immediate and visceral (the "SPEED RESET!" overlay makes it
+legible). This is a dopamine loop in the literal game-design sense, and it works.
+
+The `speed_tier` / `level` decoupling is architecturally clean. `level` keeps
+incrementing (drives palette, scoring multiplier, 20G gate). `speed_tier` resets
+and re-climbs (drives fall speed). They're independent counters with independent
+purposes. The `fall_speed(speed_tier)` call at the gravity tick is the only place
+the split shows in the code.
+
+### Palette shift — mood without mechanics
+
+Darkening tiles by 10 % per 10 levels is a purely aesthetic change, but it matters.
+The player feels a mode transition at level 10, 20, 30 — a visual confirmation that
+they've crossed a threshold. The 6-phase wrap means the palette eventually returns to
+full brightness, which pairs naturally with a speed reset for a genuine "new round"
+feeling.
+
+Extending the cache key with `palette_phase` on `get_block` / `get_ghost` is correct.
+The surfaces are built once per (color, size, palette_phase) combination and reused.
+The first game will build surfaces as phases are encountered; all subsequent playthroughs
+hit the cache. Memory footprint is bounded: 7 colors × up to 6 phases = 42 distinct
+block surfaces. Negligible.
+
+### Placement score — counting the grind
+
++10 per piece is so small that it only matters in aggregate, and that's the point.
+At level 20, hundreds of pieces are placed. The player knows that surviving pays,
+not just clearing. Combined with the danger multiplier (2× for rows above the line),
+the scoring system now rewards three things simultaneously: clearing, surviving in
+the danger zone, and simply not dying. This creates a much richer decision space.
+
+### Mute persistence + gap-free tiers
+
+Both of these were bugs, not features. The mute bug (game music resuming unmuted
+after a track loop ended) is fixed by threading `_muted` through `_start_tier()`.
+The tier gap (brief silence between sequence steps) is fixed by pre-generating all
+WAV files at game start. Pre-generation means the first game start is slightly slower
+(~0.5s for 10 DSP builds), but every tier transition thereafter is instant. The right
+trade-off.
+
+### Alt/Tab and Page Volume
+
+These are quality-of-life fixes that matter more than they sound. Alt+Tab is a muscle
+memory shortcut that many players hit reflexively when switching windows. Without the
+filter it would dismiss the pause screen. Page Up/Down volume means the player can
+adjust music feel without leaving the game. Both are the kind of polish that separates
+a finished game from a draft.
 
 ---
 
@@ -145,24 +231,23 @@ the kind of refactor that prevents bugs that haven't been written yet.
 
 ## What remains
 
-The Tetris Guideline feature set is now complete. What follows are refinements rather
-than missing features.
+**Scoring display for special clears** — a brief floating "+1600" or "+B2B×1.5"
+delta label would make big score jumps legible. The moment a T-spin or B2B fires
+the score spikes, but the player has no way to know how much without watching the
+counter. Minor feedback improvement.
 
-**Scoring display for special clears** — when a T-spin or B2B fires, the score jumps
-significantly. A brief score-delta popup ("+1600" or "+B2B") would make those moments
-more legible. Not critical, but would improve feedback.
+**Combo chain counter in sidebar** — the floating cyan COMBO label is brief. A
+persistent streak display in the sidebar (like LINES) would let the player track
+their current chain. Minor quality-of-life.
 
-**Combo chain counter in sidebar** — the floating board label is effective but brief.
-A persistent combo streak counter in the sidebar (like the LINES display) would let
-the player track their current streak. Minor quality-of-life.
+**Piece preview count** — standard modern Tetris shows the next 3–6 pieces. The
+sidebar shows only NEXT. A 3-piece preview would meaningfully increase strategy depth.
+Layout and design decision, not a bug.
 
-**Gravity beyond 20G** — the game currently floors the piece on each gravity tick
-at level 20+. True competitive 20G also makes DAS irrelevant above a certain speed
-(pieces die before DAS charges). This is a very edge-case concern.
-
-**Piece preview count** — standard modern Tetris shows the next 3–6 pieces, not just 1.
-The sidebar shows only NEXT. A 3-piece preview would meaningfully change strategy depth.
-This is a layout and design decision, not a bug.
+**Cascade settle animation** — currently `settle_blocks()` is instantaneous: blocks
+teleport to their settled positions between cascade flash passes. A brief settle
+animation (blocks sliding down, one row per frame) would make cascade chains visually
+legible. This requires a new SETTLING state or a frame-by-frame update loop.
 
 ---
 
@@ -197,11 +282,17 @@ This is a layout and design decision, not a bug.
 - **Back-to-back multiplier**: now implemented (1.5× on consecutive difficult clears). Fixed.
 - **Combo counter**: now implemented (50 × combo × level+1 stacking bonus). Fixed.
 - **20G gravity**: now active at level 20. Fixed.
+- **Cascade gravity**: floating blocks settle after row clears; chained clears earn 2×/3×/4×. Fixed.
+- **Speed reset**: fall speed resets every 10,000 points; sidebar shows countdown. Fixed.
+- **Palette shift**: tiles darken 10 % per 10 levels, wraps every 6 steps. Fixed.
+- **Mute persistence**: mute now survives tier transitions and track loops. Fixed.
+- **Tier gap**: all tiers pre-generated at game start; zero silence between transitions. Fixed.
 
 ### Refinements remaining
 - Score-delta popup for special clears
 - Multi-piece preview (3–6 next pieces)
 - Persistent combo streak display in sidebar
+- Cascade settle animation (blocks currently teleport between cascade passes)
 
 ### Architectural quality
 The codebase is clean. State machine with explicit string constants, no implicit
@@ -221,4 +312,4 @@ That instinct is what separates a finished game from a demo.
 
 ---
 
-*Last updated: 2026-05-26 · v1.4.0*
+*Last updated: 2026-05-27 · v1.5.0*

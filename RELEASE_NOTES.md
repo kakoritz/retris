@@ -2,6 +2,51 @@
 
 ---
 
+## v1.5.0 — Cascade Gravity, Speed Reset, Palette Shift, Page Volume
+*2026-05-27*
+
+Six independent systems added in one update. All interact with the existing
+scoring hierarchy without breaking it.
+
+### Added
+- **Placement score** — each piece locked awards +10 points. Small individually,
+  meaningful at high levels and dangerous stacks where every tile counts.
+- **Cascade block gravity** — after every line clear, any block that now has
+  empty space below it falls. Cascades can produce new full rows, which clear
+  again at a multiplier. First cascade: 2×. Second: 3×. Beyond four: "INSANE!".
+  Tetris immediately followed by a cascade Tetris triggers the **TETRIS×TETRIS**
+  event (4× score, board-centered rainbow popup, lingering like WOW).
+- **Speed reset** — fall speed is now tracked on a separate `speed_tier` counter
+  independent of level. Every 10,000 points it snaps back to tier 1. A green
+  "SPEED RESET!" overlay flashes on the board. The sidebar shows a live
+  countdown ("RST N pts") that turns orange below 2,000 and red below 500.
+- **Palette shift** — every 10 levels the tile palette darkens by 10 %. After
+  6 steps it wraps back to full brightness. The board, live piece, ghost, and
+  NEXT/HOLD preview boxes all update together. No change to color identity —
+  just luminance so the player feels they've entered a new mode.
+- **Page Up / Page Down** — adjusts music volume from anywhere in the game by
+  ±5 % per key. No need to visit Settings.
+- **Mute now persists** — `music_game.set_muted()` syncs the game-music mute
+  flag on every M key press, so mute survives tier transitions and track loops.
+- **Zero-gap tier transitions** — `start_sequence()` pre-generates all tier WAV
+  files at game start so every tier change is an instant OS-cache read.
+- **Alt/Tab/Meta pause filter** — these keys no longer accidentally resume
+  the game from the PAUSED screen.
+
+### Cascade popup priority order
+`WOW` > `TETRIS×TETRIS` > `B2B T-SPIN` > `T-SPIN` > `T-SPIN MINI` >
+`B2B TETRIS` > `INSANE` > `Crazy` > `Woah` > `Wild` > normal clear count
+
+### Files changed
+- `board.py` — `apply_block_gravity()`, `settle_blocks()` added
+- `sprites.py` — `_apply_palette()`, `palette_phase` parameter on `get_block` / `get_ghost`
+- `music_game.py` — `_muted` global, `set_muted()`, mute-aware `_start_tier()`,
+  pre-generation in `start_sequence()`
+- `main.py` — constants, POPUP_STYLES 9-13, draw functions, CLEARING handler,
+  gravity, sidebar, global key handlers, state vars, `_start_new_game()`
+
+---
+
 ## v1.4.0 — T-spin, B2B, Combo, 20G
 *2026-05-26*
 

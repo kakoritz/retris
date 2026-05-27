@@ -20,6 +20,7 @@ _RATE       = 44100
 _tier_paths: dict = {}
 _current_tier     = 0
 _game_vol         = 0.40
+_muted            = False
 
 # ── sequence definition ───────────────────────────────────────────────────────
 # Each entry: (tier, plays).  plays=2 means play twice before advancing.
@@ -275,7 +276,7 @@ def _start_tier(tier: int, loops: int = -1) -> None:
     tier = max(1, min(10, tier))
     try:
         pygame.mixer.music.load(_ensure_tier(tier))
-        pygame.mixer.music.set_volume(_game_vol)
+        pygame.mixer.music.set_volume(0.0 if _muted else _game_vol)
         pygame.mixer.music.play(loops=loops)
         _current_tier = tier
     except Exception:
@@ -290,10 +291,17 @@ def _play_sequence_step() -> None:
 # ── public API ────────────────────────────────────────────────────────────────
 
 def start_sequence() -> None:
-    """Start the game music sequence from the top (called on new game)."""
+    """Start the game music sequence from the top (called on new game).
+
+    Pre-generates all tier WAV files before playing so every tier transition
+    is instant — the OS will have them cached after the first load.
+    """
     global _seq_index, _in_danger
     if not _HAS_NP:
         return
+    for tier, _ in _GAME_SEQUENCE:
+        _ensure_tier(tier)
+    _ensure_tier(1)   # danger music
     _seq_index = 0
     _in_danger = False
     _play_sequence_step()
@@ -349,3 +357,13 @@ def stop() -> None:
 def set_volume(v: float) -> None:
     global _game_vol
     _game_vol = max(0.0, min(1.0, v))
+
+
+def set_muted(m: bool) -> None:
+    """Sync game-music mute state with the global toggle (called from main.py)."""
+    global _muted
+    _muted = m
+    try:
+        pygame.mixer.music.set_volume(0.0 if _muted else _game_vol)
+    except Exception:
+        pass

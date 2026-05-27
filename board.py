@@ -43,3 +43,28 @@ class Board:
         while self.is_valid(piece, dy=y - piece.y + 1):
             y += 1
         return y
+
+    def apply_block_gravity(self) -> bool:
+        """Move every block that has an empty cell directly below it down one row.
+
+        Scans bottom-up so each block only falls one row per call.
+        Returns True if anything moved.
+        """
+        moved = False
+        for row in range(ROWS - 2, -1, -1):
+            for col in range(COLS):
+                if self.grid[row][col] and not self.grid[row + 1][col]:
+                    self.grid[row + 1][col] = self.grid[row][col]
+                    self.grid[row][col] = 0
+                    moved = True
+        return moved
+
+    def settle_blocks(self) -> bool:
+        """Apply block gravity repeatedly until the board is fully settled.
+
+        Returns True if anything moved (i.e. floating blocks existed).
+        """
+        moved_any = False
+        while self.apply_block_gravity():
+            moved_any = True
+        return moved_any

@@ -57,16 +57,26 @@ def _build_ghost(color: tuple, size: int, opacity_pct: int) -> pygame.Surface:
     return surf
 
 
-def get_block(color_id: int, size: int = CELL_SIZE) -> pygame.Surface:
-    key = (color_id, size)
+def _apply_palette(color: tuple, phase: int) -> tuple:
+    """Darken a colour by 10 % per phase step (phase 0 = unchanged)."""
+    if phase == 0:
+        return color
+    factor = max(0.0, 1.0 - phase * 0.10)
+    return tuple(max(0, int(c * factor)) for c in color)
+
+
+def get_block(color_id: int, size: int = CELL_SIZE,
+              palette_phase: int = 0) -> pygame.Surface:
+    key = (color_id, size, palette_phase)
     if key not in _blocks:
-        _blocks[key] = _build_block(COLORS[color_id], size)
+        _blocks[key] = _build_block(_apply_palette(COLORS[color_id], palette_phase), size)
     return _blocks[key]
 
 
 def get_ghost(color_id: int, size: int = CELL_SIZE,
-              opacity_pct: int = 25) -> pygame.Surface:
-    key = (color_id, size, opacity_pct)
+              opacity_pct: int = 25, palette_phase: int = 0) -> pygame.Surface:
+    key = (color_id, size, opacity_pct, palette_phase)
     if key not in _ghosts:
-        _ghosts[key] = _build_ghost(COLORS[color_id], size, opacity_pct)
+        _ghosts[key] = _build_ghost(
+            _apply_palette(COLORS[color_id], palette_phase), size, opacity_pct)
     return _ghosts[key]

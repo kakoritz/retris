@@ -78,6 +78,21 @@ COMBO_BONUS_UNIT = 50
 # ── 20G gravity ───────────────────────────────────────────────────────────────
 GRAVITY_20G_LEVEL = 20   # level at which gravity becomes instant-drop per tick
 
+# ── placement score ───────────────────────────────────────────────────────────
+PLACEMENT_SCORE = 10     # small reward for every piece locked
+
+# ── speed reset ───────────────────────────────────────────────────────────────
+SPEED_RESET_INTERVAL = 10000   # every N points, fall speed resets to tier 1
+
+# ── palette shift ─────────────────────────────────────────────────────────────
+PALETTE_PHASE_INTERVAL = 10   # levels per palette darkening step (6 phases, then wraps)
+
+# ── page-up/down in-game volume ───────────────────────────────────────────────
+PAGE_VOL_STEP = 5   # % per keypress
+
+# ── speed-reset flash overlay ─────────────────────────────────────────────────
+SPEED_RESET_FLASH_DURATION = 2500   # ms — "SPEED RESET!" drawn on board
+
 # ── sidebar popup ─────────────────────────────────────────────────────────────
 POPUP_DURATION    = 2000   # ms
 SHAKE_DURATION    = 380    # ms  (quad clear only)
@@ -128,15 +143,22 @@ _PAUSE_CELL  = 14   # block + 2 px gap
 
 POPUP_STYLES = {
     # count 0 is reserved for the perfect-clear WOW popup (board-centered, rainbow)
-    0: ("!! W O W !!",   None,           32),
-    1: ("Nice!",         (100, 255, 120), 17),
-    2: ("Great!",        (255, 235,  60), 20),
-    3: ("Fantastic!",    (255, 150,  50), 20),
-    4: ("TETRIS!",        None,           24),  # None = rainbow
-    5: ("T-SPIN!",       (200, 100, 255), 22),
-    6: ("T-SPIN MINI",   (180,  80, 200), 17),
-    7: ("B2B TETRIS!",    None,           22),  # None = rainbow
-    8: ("B2B T-SPIN!",   (220, 130, 255), 22),
+    0:  ("!! W O W !!",      None,           32),
+    1:  ("Nice!",            (100, 255, 120), 17),
+    2:  ("Great!",           (255, 235,  60), 20),
+    3:  ("Fantastic!",       (255, 150,  50), 20),
+    4:  ("TETRIS!",           None,           24),  # None = rainbow
+    5:  ("T-SPIN!",          (200, 100, 255), 22),
+    6:  ("T-SPIN MINI",      (180,  80, 200), 17),
+    7:  ("B2B TETRIS!",       None,           22),  # None = rainbow
+    8:  ("B2B T-SPIN!",      (220, 130, 255), 22),
+    # cascade chain popups
+    9:  ("Wild!",            ( 80, 255, 180), 18),
+    10: ("Woah!",            (255, 200,  50), 20),
+    11: ("Crazy!",           (255,  80,  50), 22),
+    12: ("INSANE!",          (255,  50, 255), 26),
+    # Tetris×Tetris cascade: board-centered rainbow (treated like WOW)
+    13: ("TETRIS×TETRIS!",    None,           28),
 }
 
 _font_cache: dict = {}
@@ -220,7 +242,8 @@ def draw_board(surf: pygame.Surface, board: Board,
                flash_rows: set | None = None,
                flash_on: bool = False,
                flash_quad: bool = False,
-               wow_on: bool = False) -> None:
+               wow_on: bool = False,
+               palette_phase: int = 0) -> None:
     # Determine the flash colour for this frame.
     # WOW (perfect clear) cycles a fast rainbow hue across every cell.
     # Normal Tetris clears use white; quad (4-line) uses gold.
@@ -242,7 +265,7 @@ def draw_board(surf: pygame.Surface, board: Board,
             elif flash_rows and gy in flash_rows and flash_on:
                 pygame.draw.rect(surf, fc, (px, py, CELL_SIZE - 1, CELL_SIZE - 1))
             elif val:
-                surf.blit(get_block(val), (px, py))
+                surf.blit(get_block(val, palette_phase=palette_phase), (px, py))
             else:
                 pygame.draw.rect(surf, _BOARD_CELL,
                                  (px, py, CELL_SIZE - 1, CELL_SIZE - 1))
@@ -273,17 +296,18 @@ def _draw_danger_line(surf: pygame.Surface) -> None:
     pygame.draw.line(surf, glow, (0, y + 2), (BOARD_WIDTH - 1, y + 2), 1)
 
 
-def draw_piece(surf: pygame.Surface, piece: Piece) -> None:
+def draw_piece(surf: pygame.Surface, piece: Piece,
+               palette_phase: int = 0) -> None:
     for row_i, row in enumerate(piece.shape):
         for col_i, val in enumerate(row):
             if val:
-                surf.blit(get_block(val),
+                surf.blit(get_block(val, palette_phase=palette_phase),
                           ((piece.x + col_i) * CELL_SIZE,
                            (piece.y + row_i) * CELL_SIZE))
 
 
 def draw_ghost(surf: pygame.Surface, board: Board, piece: Piece,
-               opacity_pct: int = 25) -> None:
+               opacity_pct: int = 25, palette_phase: int = 0) -> None:
     if opacity_pct == 0:
         return   # setting fully disabled — skip entirely
     gy = board.ghost_y(piece)
@@ -292,7 +316,8 @@ def draw_ghost(surf: pygame.Surface, board: Board, piece: Piece,
     for row_i, row in enumerate(piece.shape):
         for col_i, val in enumerate(row):
             if val:
-                surf.blit(get_ghost(val, opacity_pct=opacity_pct),
+                surf.blit(get_ghost(val, opacity_pct=opacity_pct,
+                                    palette_phase=palette_phase),
                           ((piece.x + col_i) * CELL_SIZE,
                            (gy + row_i) * CELL_SIZE))
 
@@ -304,8 +329,8 @@ def draw_popup(surf: pygame.Surface, count: int, timer: int) -> None:
         return
     text_str, base_color, base_size = POPUP_STYLES[count]
 
-    # WOW popup (count == 0) uses its own duration and board-centred position.
-    is_wow   = (count == 0)
+    # WOW (0) and TETRIS×TETRIS (13) use the board-centred position + long duration.
+    is_wow   = (count in (0, 13))
     duration = WOW_POPUP_DURATION if is_wow else POPUP_DURATION
     elapsed  = duration - timer
 
@@ -366,6 +391,8 @@ def draw_popup(surf: pygame.Surface, count: int, timer: int) -> None:
 def draw_sidebar(surf: pygame.Surface, score: int, lines: int,
                  level: int, next_piece: Piece, best: int,
                  hold_piece=None, hold_used: bool = False,
+                 speed_tier: int = 1, next_speed_reset: int = SPEED_RESET_INTERVAL,
+                 palette_phase: int = 0,
                  popup_count: int = 0, popup_timer: int = 0) -> None:
     sx = BOARD_WIDTH + 12
 
@@ -377,12 +404,24 @@ def draw_sidebar(surf: pygame.Surface, score: int, lines: int,
     lbl("LINES", 108); val(str(lines),           124)
     lbl("LEVEL", 155); val(str(level),           171)
 
+    # Speed tier + reset countdown
+    lbl("SPEED", 192); val(f"T{speed_tier}", 208)
+    pts_left = max(0, next_speed_reset - score)
+    if pts_left > 2000:
+        rst_col = (100, 255, 100)
+    elif pts_left > 500:
+        rst_col = (255, 200, 50)
+    else:
+        rst_col = (255, 80, 80)
+    surf.blit(_font(12).render(f"RST {pts_left:,} pts", True, rst_col), (sx, 228))
+
     mini    = CELL_SIZE - 6
     box_w   = SIDEBAR_WIDTH - 16
     box_h   = 68
     box_x   = sx - 4
 
-    def _draw_piece_box(piece, label: str, by: int, dimmed: bool = False) -> None:
+    def _draw_piece_box(piece, label: str, by: int,
+                        dimmed: bool = False) -> None:
         lbl(label, by)
         bby = by + 18
         border_col = tuple(max(c - 80, 0) for c in BORDER_COLOR) if dimmed else BORDER_COLOR
@@ -396,17 +435,16 @@ def draw_sidebar(surf: pygame.Surface, score: int, lines: int,
             for ri, row in enumerate(shape):
                 for ci, v in enumerate(row):
                     if v:
-                        blk = get_block(v, mini)
+                        blk = get_block(v, mini, palette_phase=palette_phase)
                         if dimmed:
-                            # tint the block darker to signal "hold locked"
                             faded = blk.copy()
                             faded.set_alpha(90)
                             surf.blit(faded, (ox + ci * (mini + 1), oy + ri * (mini + 1)))
                         else:
                             surf.blit(blk, (ox + ci * (mini + 1), oy + ri * (mini + 1)))
 
-    _draw_piece_box(next_piece, "NEXT", 210)
-    _draw_piece_box(hold_piece, "HOLD", 296, dimmed=hold_used)
+    _draw_piece_box(next_piece, "NEXT", 248)
+    _draw_piece_box(hold_piece, "HOLD", 334, dimmed=hold_used)
 
     # Controls hint
     for i, h in enumerate(["<>  move",
@@ -414,7 +452,7 @@ def draw_sidebar(surf: pygame.Surface, score: int, lines: int,
                             "v  soft drop",
                             "SPC  hard drop",
                             "C   hold"]):
-        surf.blit(_font(11).render(h, True, BORDER_COLOR), (sx, 382 + i * 16))
+        surf.blit(_font(11).render(h, True, BORDER_COLOR), (sx, 422 + i * 16))
 
     draw_popup(surf, popup_count, popup_timer)
 
@@ -878,6 +916,17 @@ def main():
     # Floating "COMBO ×N" labels drawn on the board (same system as danger_bonuses)
     combo_labels: list     = []
 
+    # speed tier + reset system
+    speed_tier:       int  = 1               # drives fall speed; resets every SPEED_RESET_INTERVAL pts
+    next_speed_reset: int  = SPEED_RESET_INTERVAL   # score threshold for next reset
+
+    # cascade gravity
+    cascade_level:      int  = 0     # 0 = initial clear; 1+ = cascade passes
+    first_clear_tetris: bool = False  # True if the initial lock clear was 4 lines
+
+    # speed-reset overlay
+    speed_reset_flash_timer: int = 0
+
     def _spawn_next():
         nonlocal current, next_piece, lock_timer, lock_move_count, hold_used
         nonlocal last_action
@@ -968,6 +1017,8 @@ def main():
         nonlocal hold_piece, hold_used, lock_timer, lock_move_count
         nonlocal popup_count, popup_timer, wow_active
         nonlocal last_action, tspin_type, btb_active, combo, combo_labels
+        nonlocal speed_tier, next_speed_reset, cascade_level, first_clear_tetris
+        nonlocal speed_reset_flash_timer, danger_bonuses
         board, current, next_piece, score, lines, level, fall_timer = new_game()
         hold_piece   = None
         hold_used    = False
@@ -979,6 +1030,12 @@ def main():
         btb_active   = False
         combo        = 0
         combo_labels = []
+        speed_tier          = 1
+        next_speed_reset    = SPEED_RESET_INTERVAL
+        cascade_level       = 0
+        first_clear_tetris  = False
+        speed_reset_flash_timer = 0
+        danger_bonuses = []
         _reset_das()
         audio.play_spawn(current.color_id)
 
@@ -1015,12 +1072,16 @@ def main():
         nonlocal state, lock_timer, lock_move_count
         nonlocal clear_rows, clear_count, clear_timer, clear_flash_idx
         nonlocal clear_cells, wow_active, tspin_type, combo
+        nonlocal score, cascade_level, first_clear_tetris
         # Detect T-spin BEFORE placing — piece position + last_action must be current.
         tspin_type = _detect_tspin()
         board.place(current)
         audio.play('lock')
         _reset_das()
         lock_timer = lock_move_count = 0
+        score += PLACEMENT_SCORE   # tiny reward for every piece locked
+        cascade_level = 0
+        first_clear_tetris = False
         full = board.full_rows()
         if full:
             full_set        = set(full)
@@ -1108,6 +1169,19 @@ def main():
             # ── global keys (any state) ───────────────────────────────────────
             if event.key == pygame.K_m:
                 music.toggle_mute()
+                music_game.set_muted(music.is_muted())
+                continue
+
+            if event.key == pygame.K_PAGEUP:
+                music_vol_pct = min(100, music_vol_pct + PAGE_VOL_STEP)
+                music.set_volume(music_vol_pct / 100)
+                music_game.set_volume(music_vol_pct / 100)
+                continue
+
+            if event.key == pygame.K_PAGEDOWN:
+                music_vol_pct = max(0, music_vol_pct - PAGE_VOL_STEP)
+                music.set_volume(music_vol_pct / 100)
+                music_game.set_volume(music_vol_pct / 100)
                 continue
 
             # ── MENU ──────────────────────────────────────────────────────────
@@ -1204,13 +1278,16 @@ def main():
                     state = post_anim_state
 
             # ── PAUSED ────────────────────────────────────────────────────────
-            # Q is the deliberate exit key; every other key (including Esc) resumes.
-            # This prevents accidentally quitting to the menu mid-game.
+            # Q exits to menu. Alt/Meta combos and Tab are ignored so OS-level
+            # window-switching (Alt+Tab) doesn't accidentally resume the game.
             elif state == PAUSED:
                 if event.key == pygame.K_q:
                     music_game.stop()
                     music.start_menu()
                     state = MENU
+                elif (event.key == pygame.K_TAB
+                      or event.mod & (pygame.KMOD_ALT | pygame.KMOD_META)):
+                    pass   # swallow window-management keys
                 else:
                     pygame.mixer.music.set_volume(pre_pause_vol)
                     state = PLAYING
@@ -1346,7 +1423,7 @@ def main():
             grounded = not board.is_valid(current, dy=1)
 
             fall_timer += dt
-            if fall_timer >= fall_speed(level):
+            if fall_timer >= fall_speed(speed_tier):
                 fall_timer = 0
                 if not grounded:
                     if level >= GRAVITY_20G_LEVEL:
@@ -1382,6 +1459,10 @@ def main():
                     danger_rows = [r for r in clear_rows if r < 10]
                     danger_mult = 2 if danger_rows else 1
 
+                    # Cascade multiplier: 1× for the first clear, 2× for first
+                    # cascade, 3× for second, etc.
+                    cascade_mult = cascade_level + 1
+
                     # Base line-clear score: T-spin tables override SCORE_TABLE.
                     is_tspin      = tspin_type is not None and not wow_active
                     is_difficult  = (clear_count == 4 or is_tspin) and not wow_active
@@ -1391,12 +1472,20 @@ def main():
                     else:
                         base_score = SCORE_TABLE.get(clear_count, 0) * (level + 1)
 
+                    # Tetris×Tetris: first clear was a Tetris AND this cascade
+                    # is also a Tetris — override cascade mult to 4×.
+                    tetris_x_tetris = (cascade_level == 1
+                                       and clear_count == 4
+                                       and first_clear_tetris)
+                    if tetris_x_tetris:
+                        cascade_mult = 4
+
                     # Back-to-back: 1.5× on consecutive difficult clears.
                     btb_bonus = is_difficult and btb_active
                     if btb_bonus:
                         base_score = int(base_score * 1.5)
 
-                    score += base_score * danger_mult
+                    score += base_score * cascade_mult * danger_mult
 
                     # Combo bonus: 50 × combo count × (level + 1); combo = 0 on
                     # first clear in a row (no bonus yet), increments each clear.
@@ -1432,22 +1521,49 @@ def main():
                             'max_timer': 1300,
                         })
 
-                    level = lines // 10 + 1
+                    # Track level and speed tier.
+                    old_level = level
+                    level     = lines // 10 + 1
+                    if level > old_level:
+                        speed_tier = min(speed_tier + (level - old_level), 20)
+
+                    # Speed reset: every SPEED_RESET_INTERVAL points fall speed
+                    # drops back to tier 1.
+                    speed_reset_triggered = False
+                    while score >= next_speed_reset:
+                        next_speed_reset    += SPEED_RESET_INTERVAL
+                        speed_tier           = 1
+                        speed_reset_triggered = True
+                    if speed_reset_triggered:
+                        speed_reset_flash_timer = SPEED_RESET_FLASH_DURATION
+
                     best  = max(best, score)
+
+                    # Track whether this (first) clear was a Tetris so that a
+                    # cascade Tetris can trigger the T×T event.
+                    if cascade_level == 0:
+                        first_clear_tetris = (clear_count == 4)
+
+                    # ── clear lines, then settle floating blocks ───────────────
                     board.clear_lines()
 
-                    # ── visual feedback ───────────────────────────────────────
-                    # T-spin triple and Tetris both earn shake + max particles.
-                    big_clear = wow_active or clear_count == 4 or (is_tspin and clear_count == 3)
+                    # ── visual feedback for THIS clear pass ───────────────────
+                    big_clear = (wow_active or clear_count == 4
+                                 or (is_tspin and clear_count == 3)
+                                 or tetris_x_tetris)
                     particles += spawn_particles(clear_cells, big_clear)
                     if big_clear:
                         shake_timer = SHAKE_DURATION
 
-                    # Popup selection priority: WOW > T-spin > B2B Tetris > normal.
+                    # ── popup selection ───────────────────────────────────────
+                    # Priority: WOW > T×T > T-spin/B2B > cascade level > normal
                     if wow_active:
                         popup_count = 0
                         popup_timer = WOW_POPUP_DURATION
                         wow_active  = False
+                    elif tetris_x_tetris:
+                        popup_count = 13   # "TETRIS×TETRIS!" — board-centred
+                        popup_timer = WOW_POPUP_DURATION
                     elif is_tspin and btb_bonus:
                         popup_count = 8   # "B2B T-SPIN!"
                         popup_timer = POPUP_DURATION
@@ -1460,15 +1576,54 @@ def main():
                     elif btb_bonus and clear_count == 4:
                         popup_count = 7   # "B2B TETRIS!"
                         popup_timer = POPUP_DURATION
+                    elif cascade_level >= 4:
+                        popup_count = 12   # "INSANE!"
+                        popup_timer = POPUP_DURATION
+                    elif cascade_level == 3:
+                        popup_count = 11   # "Crazy!"
+                        popup_timer = POPUP_DURATION
+                    elif cascade_level == 2:
+                        popup_count = 10   # "Woah!"
+                        popup_timer = POPUP_DURATION
+                    elif cascade_level == 1:
+                        popup_count = 9    # "Wild!"
+                        popup_timer = POPUP_DURATION
                     else:
                         popup_count = clear_count
                         popup_timer = POPUP_DURATION
 
                     tspin_type = None   # consumed
-                    if _spawn_next():
-                        state = PLAYING
+
+                    # ── cascade check ─────────────────────────────────────────
+                    # Settle floating blocks and look for newly-filled rows.
+                    board.settle_blocks()
+                    cascade_rows = board.full_rows()
+                    if cascade_rows:
+                        # Re-enter CLEARING for the cascade pass.
+                        cascade_level  += 1
+                        full_set        = set(cascade_rows)
+                        wow_active      = all(
+                            all(c == 0 for c in board.grid[r])
+                            for r in range(ROWS) if r not in full_set
+                        )
+                        clear_rows      = full_set
+                        clear_count     = len(cascade_rows)
+                        clear_timer     = 0
+                        clear_flash_idx = 0
+                        clear_cells     = [
+                            (col, row_i, board.grid[row_i][col])
+                            for row_i in cascade_rows for col in range(COLS)
+                            if board.grid[row_i][col]
+                        ]
+                        audio.play(min(clear_count, 4))
+                        # state stays CLEARING — next frame re-enters this block
                     else:
-                        _end_game()
+                        first_clear_tetris = False
+                        cascade_level      = 0
+                        if _spawn_next():
+                            state = PLAYING
+                        else:
+                            _end_game()
 
         # ── game-over animation ───────────────────────────────────────────────
         if state == GAME_OVER_ANIM:
@@ -1479,9 +1634,10 @@ def main():
         # ── popup / particle / fx timers ─────────────────────────────────────
         if popup_timer > 0:
             popup_timer = max(0, popup_timer - dt)
-        particles      = update_particles(particles, dt)
-        hd_flash_timer = max(0, hd_flash_timer - dt)
-        shake_timer    = max(0, shake_timer    - dt)
+        particles            = update_particles(particles, dt)
+        hd_flash_timer       = max(0, hd_flash_timer       - dt)
+        shake_timer          = max(0, shake_timer           - dt)
+        speed_reset_flash_timer = max(0, speed_reset_flash_timer - dt)
 
         # Advance danger-bonus ×2 floating labels (float upward, count down).
         s = dt / 1000.0
@@ -1503,6 +1659,9 @@ def main():
         elif state in (PLAYING, CLEARING, GAME_OVER, GAME_OVER_ANIM, PAUSED):
             screen.fill(BG_COLOR)
 
+            # Palette phase: darkens tiles by 10 % per 10 levels, wraps every 6 steps.
+            palette_phase = ((level - 1) // PALETTE_PHASE_INTERVAL) % 6
+
             # Board content draws to its own surface so shake + flash can offset it
             bsurf = pygame.Surface((BOARD_WIDTH, BOARD_HEIGHT))
             bsurf.fill(_BOARD_LINE)
@@ -1511,7 +1670,8 @@ def main():
             fo = (clear_flash_idx % 2 == 0) if state == CLEARING else False
             fq = (clear_count == 4) if state == CLEARING else False
             fw = wow_active if state == CLEARING else False
-            draw_board(bsurf, board, flash_rows=fr, flash_on=fo, flash_quad=fq, wow_on=fw)
+            draw_board(bsurf, board, flash_rows=fr, flash_on=fo, flash_quad=fq,
+                       wow_on=fw, palette_phase=palette_phase)
 
             # Danger warning line — drawn over the board but under the live piece
             # so the player can still see the boundary while actively placing blocks.
@@ -1519,8 +1679,9 @@ def main():
                 _draw_danger_line(bsurf)
 
             if state in (PLAYING, PAUSED):
-                draw_ghost(bsurf, board, current, ghost_opacity_pct)
-                draw_piece(bsurf, current)
+                draw_ghost(bsurf, board, current, ghost_opacity_pct,
+                           palette_phase=palette_phase)
+                draw_piece(bsurf, current, palette_phase=palette_phase)
 
             draw_particles(bsurf, particles)
 
@@ -1537,6 +1698,13 @@ def main():
                 ct = _font(18).render(cl['text'], True, (0, 220, 240))
                 ct.set_alpha(a)
                 bsurf.blit(ct, (int(cl['x']), int(cl['y'])))
+
+            # Speed-reset "SPEED RESET!" overlay (board-centred, fades out)
+            if speed_reset_flash_timer > 0:
+                a = 1.0 if speed_reset_flash_timer > 500 else speed_reset_flash_timer / 500
+                sr_col = tuple(int(c * a) for c in (100, 255, 100))
+                sr_t   = _font(22).render("SPEED  RESET!", True, sr_col)
+                bsurf.blit(sr_t, (BOARD_WIDTH // 2 - sr_t.get_width() // 2, 38))
 
             # Hard-drop white flash
             if hd_flash_timer > 0:
@@ -1561,6 +1729,8 @@ def main():
 
             draw_sidebar(screen, score, lines, level, next_piece, best,
                          hold_piece, hold_used,
+                         speed_tier, next_speed_reset,
+                         palette_phase,
                          popup_count, popup_timer)
             pygame.draw.rect(screen, BORDER_COLOR,
                              (0, 0, BOARD_WIDTH, BOARD_HEIGHT), 1)
