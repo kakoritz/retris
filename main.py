@@ -861,6 +861,17 @@ def main():
 
     current_scale = config.get_scale()
     display = _make_display(current_scale)
+
+    if pygame.display.get_driver() == "offscreen":
+        print(
+            "\nT3TR1S: display unavailable — SDL fell back to offscreen mode.\n"
+            "This usually means the X server has run out of client connections\n"
+            "(common when VS Code, Firefox, and Discord are all open).\n"
+            "Close a few heavy apps and try again.\n"
+        )
+        pygame.quit()
+        sys.exit(1)
+
     # Logical surface: everything renders here at the native 460×600 size
     screen  = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
 
