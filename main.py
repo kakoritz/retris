@@ -339,11 +339,12 @@ def draw_popup(surf: pygame.Surface, count: int, timer: int) -> None:
     duration = WOW_POPUP_DURATION if is_wow else POPUP_DURATION
     elapsed  = duration - timer
 
-    # Float upward over lifetime
+    # Float upward from ~60% down the board toward centre
     if is_wow:
         y = BOARD_HEIGHT // 2 - 18 - int((elapsed / duration) * 40)
     else:
-        y = 440 - int((elapsed / POPUP_DURATION) * 22)
+        start_y = int(BOARD_HEIGHT * 0.62)
+        y = start_y - int((elapsed / POPUP_DURATION) * 60)
 
     # Fade out in last 600 ms
     alpha = 1.0 if timer > 600 else timer / 600
@@ -365,30 +366,19 @@ def draw_popup(surf: pygame.Surface, count: int, timer: int) -> None:
     f     = _font(size)
     tw, th = f.size(text_str)
 
-    if is_wow:
-        # WOW: large glowing rectangle centred on the board
-        pad_x, pad_y = 18, 8
-        bw, bh = tw + pad_x * 2, th + pad_y * 2
-        bx = BOARD_WIDTH // 2 - bw // 2
-        bg = tuple(int(c * 0.30 * alpha) for c in vivid)
-        pygame.draw.rect(surf, bg, (bx, y - pad_y, bw, bh), border_radius=6)
-        # Drop shadow for legibility over the board
-        shadow = tuple(int(c * 0.25 * alpha) for c in vivid)
-        t = f.render(text_str, True, shadow)
-        surf.blit(t, (BOARD_WIDTH // 2 - tw // 2 + 2, y + 2))
-        t = f.render(text_str, True, color)
-        surf.blit(t, (BOARD_WIDTH // 2 - tw // 2, y))
-    else:
-        # Normal popup: sidebar-right column
-        if count >= 2:
-            pad_x, pad_y = 10, 4
-            bw, bh = tw + pad_x * 2, th + pad_y * 2
-            bx = BOARD_WIDTH + (SIDEBAR_WIDTH - bw) // 2
-            bg = tuple(int(c * 0.22 * alpha) for c in vivid)
-            pygame.draw.rect(surf, bg, (bx, y - pad_y, bw, bh), border_radius=4)
-        t = f.render(text_str, True, color)
-        x = BOARD_WIDTH + (SIDEBAR_WIDTH - t.get_width()) // 2
-        surf.blit(t, (x, y))
+    # All popups render on the board, centred horizontally.
+    pad_x = 14 if is_wow else 10
+    pad_y = 7  if is_wow else 4
+    bw, bh = tw + pad_x * 2, th + pad_y * 2
+    bx = BOARD_WIDTH // 2 - bw // 2
+    bg_alpha = 0.30 if is_wow else 0.22
+    bg = tuple(int(c * bg_alpha * alpha) for c in vivid)
+    pygame.draw.rect(surf, bg, (bx, y - pad_y, bw, bh), border_radius=6)
+    shadow = tuple(int(c * 0.25 * alpha) for c in vivid)
+    t = f.render(text_str, True, shadow)
+    surf.blit(t, (BOARD_WIDTH // 2 - tw // 2 + 2, y + 2))
+    t = f.render(text_str, True, color)
+    surf.blit(t, (BOARD_WIDTH // 2 - tw // 2, y))
 
 
 # ── sidebar ───────────────────────────────────────────────────────────────────
@@ -399,7 +389,8 @@ def draw_sidebar(surf: pygame.Surface, score: int, lines: int,
                  speed_tier: int = 1, next_speed_reset: int = SPEED_RESET_INTERVAL,
                  reset_bonus_mult: float = 1.0, full_cascade_mode: bool = False,
                  palette_phase: int = 0,
-                 popup_count: int = 0, popup_timer: int = 0) -> None:
+                 popup_count: int = 0, popup_timer: int = 0,
+                 next_flash_timer: int = 0, hold_has_piece: bool = False) -> None:
     sx = BOARD_WIDTH + 12
 
     def lbl(text, y): surf.blit(_font(13).render(text, True, BORDER_COLOR), (sx, y))
@@ -421,8 +412,8 @@ def draw_sidebar(surf: pygame.Surface, score: int, lines: int,
         surf.blit(_font(12).render(f"×{reset_bonus_mult:.1f}", True, (255, 200, 50)),
                   (sx + 48, 167))
 
-    # Reset countdown
-    surf.blit(_font(12).render("RESET IN", True, BORDER_COLOR), (sx, 191))
+    # Countdown to next cascade mode toggle / speed reset
+    surf.blit(_font(12).render("CASCADE IN", True, BORDER_COLOR), (sx, 191))
     pts_left = max(0, next_speed_reset - score)
     if pts_left > 2000:
         rst_col = (100, 255, 100)
@@ -443,12 +434,26 @@ def draw_sidebar(surf: pygame.Surface, score: int, lines: int,
 
     mini  = CELL_SIZE - 6
     box_w = SIDEBAR_WIDTH - 16
-    box_h = 68
+    box_h = 72
     box_x = sx - 4
 
-    def _draw_piece_box(piece, label: str, by: int, dimmed: bool = False) -> None:
+    def _draw_piece_box(piece, label: str, by: int, dimmed: bool = False,
+                        flash_t: int = 0, pulse: bool = False) -> None:
         surf.blit(_font(13).render(label, True, BORDER_COLOR), (sx, by))
-        bby = by + 18
+        bby = by + 20   # extra gap between label and box
+        # Border: pulsing glow for hold (when it has a piece), flash for next
+        if pulse and hold_has_piece:
+            t_ms = pygame.time.get_ticks()
+            # slow 0→1→0 sine wave, period ~1.8 s
+            glow = 0.45 + 0.45 * math.sin(t_ms / 285.0)
+            gc   = tuple(int(c * glow) for c in (80, 220, 255))
+            pygame.draw.rect(surf, gc, (box_x - 1, bby - 1, box_w + 2, box_h + 2), 2,
+                             border_radius=3)
+        elif flash_t > 0:
+            fa = min(1.0, flash_t / 120)
+            fc = tuple(int(c * fa) for c in (255, 255, 255))
+            pygame.draw.rect(surf, fc, (box_x - 1, bby - 1, box_w + 2, box_h + 2), 2,
+                             border_radius=3)
         border_col = tuple(max(c - 80, 0) for c in BORDER_COLOR) if dimmed else BORDER_COLOR
         pygame.draw.rect(surf, border_col, (box_x, bby, box_w, box_h), 1)
         if piece is not None:
@@ -468,8 +473,8 @@ def draw_sidebar(surf: pygame.Surface, score: int, lines: int,
                         else:
                             surf.blit(blk, (ox + ci * (mini + 1), oy + ri * (mini + 1)))
 
-    _draw_piece_box(next_piece, "NEXT", 238)
-    _draw_piece_box(hold_piece, "HOLD", 324, dimmed=hold_used)
+    _draw_piece_box(next_piece, "NEXT", 238, flash_t=next_flash_timer)
+    _draw_piece_box(hold_piece, "HOLD", 330, dimmed=hold_used, pulse=True)
 
     # Controls hint
     for i, h in enumerate(["<>  move",
@@ -477,7 +482,7 @@ def draw_sidebar(surf: pygame.Surface, score: int, lines: int,
                             "v  soft drop",
                             "SPC  hard drop",
                             "C   hold"]):
-        surf.blit(_font(11).render(h, True, BORDER_COLOR), (sx, 414 + i * 16))
+        surf.blit(_font(11).render(h, True, BORDER_COLOR), (sx, 424 + i * 16))
 
     draw_popup(surf, popup_count, popup_timer)
 
@@ -911,6 +916,10 @@ def main():
     popup_count: int = 0
     popup_timer: int = 0
 
+    # next-piece box flash (brief white outline when piece changes)
+    next_flash_timer: int = 0
+    NEXT_FLASH_MS = 220
+
     # name entry
     initials   = ['A', 'A', 'A']
     ini_cursor = 0
@@ -973,9 +982,10 @@ def main():
 
     def _spawn_next():
         nonlocal current, next_piece, lock_timer, lock_move_count, hold_used
-        nonlocal last_action
+        nonlocal last_action, next_flash_timer
         current          = next_piece
         next_piece       = Piece()
+        next_flash_timer = NEXT_FLASH_MS
         lock_timer       = 0
         lock_move_count  = 0
         hold_used        = False
@@ -1063,7 +1073,7 @@ def main():
         nonlocal last_action, tspin_type, btb_active, combo, combo_labels
         nonlocal speed_tier, next_speed_reset, speed_reset_count, reset_bonus_mult
         nonlocal full_cascade_mode, cascade_level, first_clear_tetris
-        nonlocal speed_reset_flash_timer, danger_bonuses
+        nonlocal speed_reset_flash_timer, danger_bonuses, next_flash_timer
         board, current, next_piece, score, lines, level, fall_timer = new_game()
         hold_piece   = None
         hold_used    = False
@@ -1083,6 +1093,7 @@ def main():
         cascade_level       = 0
         first_clear_tetris  = False
         speed_reset_flash_timer = 0
+        next_flash_timer = 0
         danger_bonuses = []
         _reset_das()
         audio.play_spawn(current.color_id)
@@ -1602,7 +1613,7 @@ def main():
                     big_clear = (wow_active or clear_count == 4
                                  or (is_tspin and clear_count == 3)
                                  or tetris_x_tetris)
-                    particles += spawn_particles(clear_cells, big_clear)
+                    particles += spawn_particles(clear_cells, clear_count)
                     if big_clear:
                         shake_timer = SHAKE_DURATION
 
@@ -1655,11 +1666,9 @@ def main():
                         cascade_anim_timer = 0
                         state = CASCADING
                     else:
-                        # Loop until no more isolated blocks can fall — a singleton
-                        # dropping away from its neighbour can expose a new singleton
-                        # above it.
-                        while board.apply_singleton_gravity():
-                            pass
+                        # Normal mode: all floating blocks fall instantly (same physics
+                        # as full cascade, just no animation or scoring bonus).
+                        board.settle_blocks()
                         cascade_rows = board.full_rows()
                         if cascade_rows:
                             cascade_level  += 1
@@ -1721,7 +1730,14 @@ def main():
                         # and spawn the next piece.
                         if speed_reset_count > 0:
                             score += CASCADE_BONUS_PER_RESET * speed_reset_count
-                            best   = max(best, score)
+                            while score >= next_speed_reset:
+                                next_speed_reset  += SPEED_RESET_INTERVAL
+                                speed_tier         = 1
+                                speed_reset_count += 1
+                                reset_bonus_mult   = round(1.0 + speed_reset_count * 0.1, 1)
+                                full_cascade_mode  = not full_cascade_mode
+                                speed_reset_flash_timer = SPEED_RESET_FLASH_DURATION
+                            best = max(best, score)
                         first_clear_tetris = False
                         cascade_level      = 0
                         if _spawn_next():
@@ -1742,6 +1758,7 @@ def main():
         hd_flash_timer       = max(0, hd_flash_timer       - dt)
         shake_timer          = max(0, shake_timer           - dt)
         speed_reset_flash_timer = max(0, speed_reset_flash_timer - dt)
+        next_flash_timer     = max(0, next_flash_timer      - dt)
 
         # Advance danger-bonus ×2 floating labels (float upward, count down).
         s = dt / 1000.0
@@ -1849,7 +1866,8 @@ def main():
                          speed_tier, next_speed_reset,
                          reset_bonus_mult, full_cascade_mode,
                          palette_phase,
-                         popup_count, popup_timer)
+                         popup_count, popup_timer,
+                         next_flash_timer, hold_piece is not None)
             pygame.draw.rect(screen, BORDER_COLOR,
                              (0, 0, BOARD_WIDTH, BOARD_HEIGHT), 1)
             pygame.draw.line(screen, BORDER_COLOR,

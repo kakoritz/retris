@@ -3,21 +3,29 @@ import pygame
 from constants import CELL_SIZE, COLORS
 
 
-def spawn(clear_cells: list, quad: bool = False) -> list:
-    """Return new particles bursting from the cleared row cells."""
-    out   = []
-    count = 3 if quad else 2
+def spawn(clear_cells: list, intensity: int = 1) -> list:
+    """Return new particles bursting from the cleared row cells.
+
+    intensity: 1=single, 2=double, 3=triple, 4=Tetris/quad
+    Higher intensity → more particles, faster, bigger, and spread wider.
+    """
+    count   = (2, 3, 4, 6)[min(intensity, 4) - 1]
+    max_spd = (280, 340, 400, 520)[min(intensity, 4) - 1]
+    sz_lo   = (2, 2, 3, 3)[min(intensity, 4) - 1]
+    sz_hi   = (4, 5, 6, 8)[min(intensity, 4) - 1]
+
+    out = []
     for col, row, color_id in clear_cells:
         color = COLORS[color_id]
         for _ in range(count):
             out.append([
                 float(col * CELL_SIZE + random.uniform(0, CELL_SIZE)),
                 float(row * CELL_SIZE + random.uniform(0, CELL_SIZE)),
-                random.uniform(-200, 200),    # vx  px/s
-                random.uniform(-320, -70),    # vy  px/s  (upward)
+                random.uniform(-max_spd, max_spd),      # vx  px/s
+                random.uniform(-max_spd * 1.3, -50),    # vy  px/s  (upward bias)
                 color,
-                random.uniform(0.75, 1.0),   # life  (1 → 0)
-                random.randint(2, 5),         # size  px
+                random.uniform(0.75, 1.0),              # life  (1 → 0)
+                random.randint(sz_lo, sz_hi),            # size  px
             ])
     return out
 
