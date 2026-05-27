@@ -673,7 +673,7 @@ def draw_pause(surf: pygame.Surface, blink_on: bool) -> None:
     cx = SCREEN_WIDTH // 2
     t = _font(15).render("PRESS  SPACE  TO  RESUME", True, WHITE)
     surf.blit(t, (cx - t.get_width() // 2, 332))
-    t = _font(12, bold=False).render("Q  —  exit to menu", True, BORDER_COLOR)
+    t = _font(12, bold=False).render("S  —  settings    Q  —  exit to menu", True, BORDER_COLOR)
     surf.blit(t, (cx - t.get_width() // 2, 356))
 
 
@@ -935,7 +935,8 @@ def main():
     music_vol_pct    = 40                          # 0-100
     sfx_vol_pct      = 100                         # 0-100
     ghost_opacity_pct = config.get_ghost_opacity() # 0-100, persisted
-    settings_row     = 0                           # 0=music 1=sfx 2=scale 3=ghost
+    settings_row          = 0                      # 0=music 1=sfx 2=scale 3=ghost
+    settings_return_state = MENU                   # MENU or PAUSED
 
     # game-over animation
     go_anim         = GameOverAnim()
@@ -1296,7 +1297,8 @@ def main():
                     music_game.start_sequence()
                     state = PLAYING
                 elif event.key == pygame.K_s:
-                    settings_row = 0
+                    settings_row          = 0
+                    settings_return_state = MENU
                     state = SETTINGS
                 elif event.key == pygame.K_t:
                     music_test_tier = 1
@@ -1392,6 +1394,12 @@ def main():
                 elif event.key == pygame.K_SPACE:
                     pygame.mixer.music.set_volume(pre_pause_vol)
                     state = PLAYING
+                elif event.key == pygame.K_s:
+                    # Restore full volume so volume adjustments in settings are audible
+                    pygame.mixer.music.set_volume(pre_pause_vol)
+                    settings_row          = 0
+                    settings_return_state = PAUSED
+                    state = SETTINGS
                 # all other keys silently ignored while paused
 
             # ── GAME OVER ─────────────────────────────────────────────────────
@@ -1465,7 +1473,13 @@ def main():
             # ── SETTINGS ──────────────────────────────────────────────────────
             elif state == SETTINGS:
                 if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_ESCAPE):
-                    state = MENU
+                    if settings_return_state == PAUSED:
+                        # Re-apply pause volume (user may have changed music_vol_pct)
+                        pre_pause_vol = music_vol_pct / 100
+                        pygame.mixer.music.set_volume(max(0.0, pre_pause_vol * 0.10))
+                        state = PAUSED
+                    else:
+                        state = MENU
                 elif event.key == pygame.K_UP:
                     settings_row = (settings_row - 1) % 4
                 elif event.key == pygame.K_DOWN:

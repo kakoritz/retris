@@ -211,6 +211,7 @@ rendered in pixel-art block letters consistent with the game's visual language.
 
 Key mapping:
 - **Space** resumes
+- **S** opens Settings (music volume, SFX, display scale, ghost opacity adjustable mid-game; returns to pause on exit)
 - **Q** exits to the main menu
 
 Space is the single unambiguous resume key. Alt/Tab/Meta and other system-adjacent keys

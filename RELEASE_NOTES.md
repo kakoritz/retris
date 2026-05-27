@@ -2,6 +2,18 @@
 
 ---
 
+## v1.7.1 — Settings Accessible from Pause
+*2026-05-27*
+
+### Added
+- **Settings from pause** — pressing `S` on the pause screen opens the Settings
+  screen. Music volume, SFX volume, display scale, and ghost opacity are all
+  adjustable mid-game. On exit (Enter or Esc), the game returns to the pause
+  screen with 10 % music volume correctly re-applied. The pause overlay now
+  shows the `S — settings` hint alongside the existing `Q — exit to menu` line.
+
+---
+
 ## v1.7.0 — Cascade Cap, Scaling Reset Interval, Sidebar Cleanup
 *2026-05-27*
 

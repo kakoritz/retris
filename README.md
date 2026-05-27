@@ -170,6 +170,7 @@ python3 main.py
 | Key | Action |
 |-----|--------|
 | `Space` | Resume |
+| `S` | Settings |
 | `Q` | Exit to menu |
 
 ### Music Preview

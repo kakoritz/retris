@@ -9,6 +9,17 @@ part development commentary — what changed, what it means, and where the game 
 
 ---
 
+## v1.7.1 Review — Settings from Pause
+
+A small but correct UX decision. Being locked out of settings during a live game
+(especially display scale and music volume) was a genuine friction point. The
+implementation is clean: pause → S → settings screen → Esc → back to pause, with
+music volume correctly restored to 10% on return. The `settings_return_state`
+variable is minimal and doesn't complicate the state machine. The pause overlay
+now documents the key. No regressions introduced.
+
+---
+
 ## v1.7.0 Review — Balance Pass
 
 ### What this update means
