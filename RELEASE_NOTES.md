@@ -2,6 +2,33 @@
 
 ---
 
+## v1.9.0 — Multi-Module Architecture Refactor
+*2026-05-27*
+
+### Changed
+- **main.py split into 7 focused modules** — a six-phase architectural refactor
+  reduces main.py from ~2,148 lines to 589. Logic, rendering, input, and state are now
+  in separate, independently-importable files.
+- **`game_constants.py`** — all gameplay-tuning constants (DAS, lock delay, scoring
+  tables, kick tables, popup styles). Zero Pygame dependency; safe in unit tests.
+- **`rotation.py`** — SRS wall-kick engine and T-spin corner detection extracted as
+  public standalone functions.
+- **`game_state.py`** — `GameState` class holds all per-session mutable state; call
+  `reset()` to start a new game. Replaces ~50 local variables scattered through `main()`.
+- **`app_state.py`** — `AppState` class holds application-shell state that persists
+  across game sessions (display surfaces, audio volumes, DAS config, leaderboard cache).
+  Also owns all state-machine string constants.
+- **`renderer.py`** — every `draw_*` function, the font cache, and rendering-only
+  constants. Imported into `main.py`; never imports from `main.py`.
+- **`game_logic.py`** — `spawn_next`, `do_hold`, `start_new_game`, `end_game`,
+  `reset_lock`, `do_lock`, `debug_clear_board`. Former closures with `nonlocal`;
+  now standalone functions taking explicit `(gs, app)` parameters.
+- **`input_handler.py`** — full pygame event dispatch and DAS auto-repeat in a single
+  `handle_input(gs, app, dt)` call. Owns `MUSIC_END` and `INITIALS_CHARS` constants.
+- Test suite unchanged: 42/42 tests pass throughout the refactor.
+
+---
+
 ## v1.8.1 — Dynamic Cascade Timing
 *2026-05-27*
 

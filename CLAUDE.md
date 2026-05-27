@@ -51,9 +51,16 @@ Priority: WOW > T×T > B2B T-SPIN > T-SPIN > T-SPIN MINI > B2B TETRIS > INSANE >
 ## Files
 
 ```
-main.py           game loop, state machine, all rendering (~1300 lines)
+main.py           bootstrap + game loop frame body (~590 lines)
+game_state.py     GameState — per-session mutable state, reset() on new game
+app_state.py      AppState — shell state across sessions; state-machine constants
+game_logic.py     spawn_next, do_hold, start_new_game, end_game, do_lock, etc.
+input_handler.py  event dispatch + DAS auto-repeat (handle_input)
+renderer.py       all draw_* functions, font cache, rendering constants
+rotation.py       SRS wall-kick engine, T-spin detection
+game_constants.py gameplay-tuning constants — no Pygame dependency
 board.py          grid, collision, line-clear, cascade gravity
-piece.py          tetromino shapes, CW/CCW rotation, 7-bag bag randomiser
+piece.py          tetromino shapes, CW/CCW rotation, 7-bag randomiser
 constants.py      geometry, NES palette, scoring tables, fall-speed curve
 sprites.py        cached block/ghost surfaces; palette_phase keyed
 audio.py          PCM SFX synthesis

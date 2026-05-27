@@ -269,7 +269,37 @@ not to compete visually with the live piece.
 
 ---
 
-## 7. Technical & Distribution Requirements
+## 7. Module Architecture (v1.9.0)
+
+The codebase is split into focused, single-responsibility modules with clean dependency
+boundaries:
+
+| Module | Responsibility | Depends on |
+|--------|---------------|------------|
+| `game_constants.py` | All tuning constants (DAS, lock, scoring, kick tables) | nothing (no Pygame) |
+| `game_state.py` | `GameState` — per-session mutable state | board, piece, game_constants |
+| `app_state.py` | `AppState` — cross-session shell state + state-machine constants | config, game_over_anim, game_constants |
+| `rotation.py` | SRS wall-kick engine, T-spin detection | audio, board, piece, constants, game_constants |
+| `game_logic.py` | spawn_next, do_hold, start_new_game, end_game, do_lock, etc. | game_state, app_state, rotation, audio, highscore, music |
+| `input_handler.py` | Event dispatch + DAS auto-repeat (`handle_input`) | game_state, app_state, game_logic, rotation, audio, config, music, music_game |
+| `renderer.py` | All draw_* functions, font cache, rendering constants | constants, board, piece, sprites, game_constants |
+| `main.py` | Bootstrap + frame body (gravity, clearing, cascading, draw) | everything above |
+
+### Dependency rule
+
+`game_constants.py` → no imports  
+`board.py`, `piece.py` → no game logic imports  
+`renderer.py` → no game_logic / input_handler imports  
+`game_logic.py` → no renderer / input_handler imports  
+`input_handler.py` → no renderer imports  
+`main.py` → imports from all layers  
+
+This ensures the logic layers can be tested without a display and the rendering layer
+can be replaced without touching game logic.
+
+---
+
+## 8. Technical & Distribution Requirements
 
 ### 7.1 Code quality
 

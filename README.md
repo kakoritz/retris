@@ -217,9 +217,16 @@ python3 -m pytest tests/ -v
 ## Project structure
 
 ```
-main.py           game loop, state machine, all rendering
-board.py          10×20 grid, collision detection, line clearing
-piece.py          tetromino shapes, CW/CCW rotation matrices
+main.py           bootstrap + frame body — gravity, clearing, cascading, draw (~590 lines)
+game_state.py     GameState — all per-session mutable state; reset() to start new game
+app_state.py      AppState — cross-session shell state + state-machine string constants
+game_logic.py     spawn_next, do_hold, do_lock, end_game, debug_clear_board, etc.
+input_handler.py  event dispatch + DAS auto-repeat (handle_input)
+renderer.py       all draw_* functions, font cache, rendering constants
+rotation.py       SRS wall-kick engine and T-spin corner detection
+game_constants.py gameplay-tuning constants — zero Pygame dependency, safe in unit tests
+board.py          10×20 grid, collision detection, line clearing, cascade gravity
+piece.py          tetromino shapes, CW/CCW rotation matrices, 7-bag randomiser
 constants.py      grid geometry, NES colour palette, scoring table, fall-speed curve
 sprites.py        procedural NES-style block and ghost surfaces (cached per colour + opacity)
 audio.py          procedural SFX via PCM synthesis (sawtooth + square oscillators)
