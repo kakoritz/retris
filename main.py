@@ -672,9 +672,38 @@ def _make_display(scale: float) -> pygame.Surface:
     return pygame.display.set_mode((w, h))
 
 
+def _build_icon() -> pygame.Surface:
+    """32×32 window icon: T-piece (stem pointing up) in T-piece purple.
+
+    Layout (each X = one cell, cs=10px):
+        . X .
+        X X X
+    Rendered with the same NES bevel style used for in-game blocks.
+    """
+    color = (160, 0, 240)
+    cs    = 10
+    surf  = pygame.Surface((32, 32), pygame.SRCALPHA)
+    ox, oy = 1, 6   # centres the 30×20 piece in the 32×32 canvas
+    hi  = tuple(min(c + 90, 255) for c in color)
+    sh  = tuple(max(c - 80,   0) for c in color)
+    for cx, cy in [(1, 0), (0, 1), (1, 1), (2, 1)]:
+        x = ox + cx * cs
+        y = oy + cy * cs
+        pygame.draw.rect(surf, (*color, 255),    (x, y, cs, cs))
+        pygame.draw.rect(surf, (8, 8, 20, 255),  (x, y, cs, cs), 1)
+        pygame.draw.line(surf, (*hi, 255), (x+1, y+1),    (x+cs-2, y+1))
+        pygame.draw.line(surf, (*hi, 255), (x+1, y+1),    (x+1, y+cs-2))
+        pygame.draw.line(surf, (*sh, 255), (x+2, y+cs-2), (x+cs-2, y+cs-2))
+        pygame.draw.line(surf, (*sh, 255), (x+cs-2, y+2), (x+cs-2, y+cs-2))
+    return surf
+
+
 def main():
     pygame.init()
     pygame.mixer.music.set_endevent(_MUSIC_END)
+
+    # Icon must be set before set_mode so the OS picks it up on window creation.
+    pygame.display.set_icon(_build_icon())
 
     current_scale = config.get_scale()
     display = _make_display(current_scale)
@@ -740,6 +769,7 @@ def main():
     # Each entry: {'x', 'y', 'vy', 'timer', 'max_timer'}
     # Spawned when rows above the danger line are cleared; float upward and fade.
     danger_bonuses: list = []
+    _cheat_seq:     list = []   # tracks 3→2→1 debug sequence; never exposed in docs
 
     def _spawn_next():
         nonlocal current, next_piece
@@ -763,6 +793,29 @@ def main():
     def _reset_das():
         nonlocal das_dir, das_timer, das_charged
         das_dir = 0; das_timer = 0; das_charged = False; keys_held.clear()
+
+    def _debug_clear_board():
+        """Fill every row solid then hand off to the normal CLEARING path so
+        the WOW event fires exactly as it would in real play."""
+        nonlocal clear_rows, clear_count, clear_timer, clear_flash_idx
+        nonlocal clear_cells, wow_active, state, hd_flash_timer
+        for r in range(ROWS):
+            for c in range(COLS):
+                if board.grid[r][c] == 0:
+                    board.grid[r][c] = 1  # colour 1 — any non-zero value clears
+        full_set        = set(range(ROWS))
+        wow_active      = True             # board will be empty after the clear
+        clear_rows      = full_set
+        clear_count     = ROWS             # 20-line "clear" — uses WOW flash path
+        clear_timer     = 0
+        clear_flash_idx = 0
+        clear_cells     = [
+            (col, row_i, board.grid[row_i][col])
+            for row_i in range(ROWS) for col in range(COLS)
+        ]
+        hd_flash_timer  = HD_FLASH_DURATION
+        audio.play(4)                      # Tetris clear sound — closest available
+        state           = CLEARING
 
     while True:
         dt = clock.tick(FPS)
@@ -830,6 +883,19 @@ def main():
 
             # ── PLAYING ───────────────────────────────────────────────────────
             elif state == PLAYING:
+                # Secret 3-2-1 debug sequence: triggers a full board clear + WOW.
+                _CHEAT = [pygame.K_3, pygame.K_2, pygame.K_1]
+                if event.key == _CHEAT[len(_cheat_seq)]:
+                    _cheat_seq.append(event.key)
+                    if len(_cheat_seq) == 3:
+                        _cheat_seq.clear()
+                        _debug_clear_board()
+                        continue
+                else:
+                    # Any key that doesn't advance the sequence (including a wrong
+                    # digit) resets it, so the user must press 3-2-1 cleanly.
+                    _cheat_seq.clear()
+
                 if event.key in (pygame.K_q, pygame.K_ESCAPE):
                     pre_pause_vol = pygame.mixer.music.get_volume()
                     pygame.mixer.music.set_volume(max(0.0, pre_pause_vol * 0.10))
