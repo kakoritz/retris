@@ -392,6 +392,7 @@ def draw_sidebar(surf: pygame.Surface, score: int, lines: int,
                  level: int, next_piece: Piece, best: int,
                  hold_piece=None, hold_used: bool = False,
                  speed_tier: int = 1, next_speed_reset: int = SPEED_RESET_INTERVAL,
+                 reset_bonus_mult: float = 1.0, full_cascade_mode: bool = False,
                  palette_phase: int = 0,
                  popup_count: int = 0, popup_timer: int = 0) -> None:
     sx = BOARD_WIDTH + 12
@@ -399,13 +400,24 @@ def draw_sidebar(surf: pygame.Surface, score: int, lines: int,
     def lbl(text, y): surf.blit(_font(13).render(text, True, BORDER_COLOR), (sx, y))
     def val(text, y): surf.blit(_font(19).render(text, True, YELLOW),       (sx, y))
 
-    lbl("SCORE",  14); val(str(score).zfill(7),  30)
-    lbl("BEST",   60); val(str(best).zfill(7),   76)
-    lbl("LINES", 108); val(str(lines),           124)
-    lbl("LEVEL", 155); val(str(level),           171)
+    lbl("SCORE", 14); val(str(score).zfill(7), 30)
+    lbl("BEST",  60); val(str(best).zfill(7),  76)
 
-    # Speed tier + reset countdown
-    lbl("SPEED", 192); val(f"T{speed_tier}", 208)
+    # Level and Lines share one compact row
+    surf.blit(_font(12).render("LVL",   True, BORDER_COLOR), (sx,      108))
+    surf.blit(_font(12).render("LINES", True, BORDER_COLOR), (sx + 65, 108))
+    surf.blit(_font(17).render(str(level), True, YELLOW),    (sx,      122))
+    surf.blit(_font(17).render(str(lines), True, YELLOW),    (sx + 65, 122))
+
+    # Speed tier + optional multiplier badge
+    surf.blit(_font(12).render("SPEED", True, BORDER_COLOR), (sx, 150))
+    surf.blit(_font(17).render(f"T{speed_tier}", True, YELLOW), (sx, 164))
+    if reset_bonus_mult > 1.005:
+        surf.blit(_font(12).render(f"×{reset_bonus_mult:.1f}", True, (255, 200, 50)),
+                  (sx + 48, 167))
+
+    # Reset countdown
+    surf.blit(_font(12).render("RESET IN", True, BORDER_COLOR), (sx, 191))
     pts_left = max(0, next_speed_reset - score)
     if pts_left > 2000:
         rst_col = (100, 255, 100)
@@ -413,16 +425,24 @@ def draw_sidebar(surf: pygame.Surface, score: int, lines: int,
         rst_col = (255, 200, 50)
     else:
         rst_col = (255, 80, 80)
-    surf.blit(_font(12).render(f"RST {pts_left:,} pts", True, rst_col), (sx, 228))
+    surf.blit(_font(14).render(f"{pts_left:,} pts", True, rst_col), (sx, 204))
 
-    mini    = CELL_SIZE - 6
-    box_w   = SIDEBAR_WIDTH - 16
-    box_h   = 68
-    box_x   = sx - 4
+    # Full-cascade mode indicator — always shown so layout is stable
+    if full_cascade_mode:
+        fc_col  = (80, 255, 180)
+        fc_mark = "★ FULL CASCADE"
+    else:
+        fc_col  = (60, 70, 80)
+        fc_mark = "○ FULL CASCADE"
+    surf.blit(_font(11).render(fc_mark, True, fc_col), (sx, 222))
 
-    def _draw_piece_box(piece, label: str, by: int,
-                        dimmed: bool = False) -> None:
-        lbl(label, by)
+    mini  = CELL_SIZE - 6
+    box_w = SIDEBAR_WIDTH - 16
+    box_h = 68
+    box_x = sx - 4
+
+    def _draw_piece_box(piece, label: str, by: int, dimmed: bool = False) -> None:
+        surf.blit(_font(13).render(label, True, BORDER_COLOR), (sx, by))
         bby = by + 18
         border_col = tuple(max(c - 80, 0) for c in BORDER_COLOR) if dimmed else BORDER_COLOR
         pygame.draw.rect(surf, border_col, (box_x, bby, box_w, box_h), 1)
@@ -443,8 +463,8 @@ def draw_sidebar(surf: pygame.Surface, score: int, lines: int,
                         else:
                             surf.blit(blk, (ox + ci * (mini + 1), oy + ri * (mini + 1)))
 
-    _draw_piece_box(next_piece, "NEXT", 248)
-    _draw_piece_box(hold_piece, "HOLD", 334, dimmed=hold_used)
+    _draw_piece_box(next_piece, "NEXT", 238)
+    _draw_piece_box(hold_piece, "HOLD", 324, dimmed=hold_used)
 
     # Controls hint
     for i, h in enumerate(["<>  move",
@@ -452,7 +472,7 @@ def draw_sidebar(surf: pygame.Surface, score: int, lines: int,
                             "v  soft drop",
                             "SPC  hard drop",
                             "C   hold"]):
-        surf.blit(_font(11).render(h, True, BORDER_COLOR), (sx, 422 + i * 16))
+        surf.blit(_font(11).render(h, True, BORDER_COLOR), (sx, 414 + i * 16))
 
     draw_popup(surf, popup_count, popup_timer)
 
@@ -600,7 +620,7 @@ def draw_pause(surf: pygame.Surface, blink_on: bool) -> None:
                                          (x + _PAUSE_BLOCK - 1, y + _PAUSE_BLOCK - 1))
 
     cx = SCREEN_WIDTH // 2
-    t = _font(15).render("PRESS  ANY  KEY  TO  RESUME", True, WHITE)
+    t = _font(15).render("PRESS  SPACE  TO  RESUME", True, WHITE)
     surf.blit(t, (cx - t.get_width() // 2, 332))
     t = _font(12, bold=False).render("Q  —  exit to menu", True, BORDER_COLOR)
     surf.blit(t, (cx - t.get_width() // 2, 356))
@@ -917,10 +937,15 @@ def main():
     combo_labels: list     = []
 
     # speed tier + reset system
-    speed_tier:       int  = 1               # drives fall speed; resets every SPEED_RESET_INTERVAL pts
-    next_speed_reset: int  = SPEED_RESET_INTERVAL   # score threshold for next reset
+    speed_tier:       int   = 1                      # drives fall speed; resets every SPEED_RESET_INTERVAL pts
+    next_speed_reset: int   = SPEED_RESET_INTERVAL   # score threshold for next reset
+    speed_reset_count: int  = 0                      # total resets so far this game
+    reset_bonus_mult: float = 1.0                    # +0.1 per reset; multiplies line-clear scores
 
-    # cascade gravity
+    # full board cascade mode: toggled on/off by each speed reset
+    full_cascade_mode: bool = False
+
+    # cascade gravity (per clear chain)
     cascade_level:      int  = 0     # 0 = initial clear; 1+ = cascade passes
     first_clear_tetris: bool = False  # True if the initial lock clear was 4 lines
 
@@ -1017,7 +1042,8 @@ def main():
         nonlocal hold_piece, hold_used, lock_timer, lock_move_count
         nonlocal popup_count, popup_timer, wow_active
         nonlocal last_action, tspin_type, btb_active, combo, combo_labels
-        nonlocal speed_tier, next_speed_reset, cascade_level, first_clear_tetris
+        nonlocal speed_tier, next_speed_reset, speed_reset_count, reset_bonus_mult
+        nonlocal full_cascade_mode, cascade_level, first_clear_tetris
         nonlocal speed_reset_flash_timer, danger_bonuses
         board, current, next_piece, score, lines, level, fall_timer = new_game()
         hold_piece   = None
@@ -1032,6 +1058,9 @@ def main():
         combo_labels = []
         speed_tier          = 1
         next_speed_reset    = SPEED_RESET_INTERVAL
+        speed_reset_count   = 0
+        reset_bonus_mult    = 1.0
+        full_cascade_mode   = False
         cascade_level       = 0
         first_clear_tetris  = False
         speed_reset_flash_timer = 0
@@ -1278,19 +1307,18 @@ def main():
                     state = post_anim_state
 
             # ── PAUSED ────────────────────────────────────────────────────────
-            # Q exits to menu. Alt/Meta combos and Tab are ignored so OS-level
-            # window-switching (Alt+Tab) doesn't accidentally resume the game.
+            # Only Space resumes — Q exits, everything else is ignored.
+            # This prevents Alt+Tab, window events, or accidental keypresses
+            # from resuming mid-game.
             elif state == PAUSED:
                 if event.key == pygame.K_q:
                     music_game.stop()
                     music.start_menu()
                     state = MENU
-                elif (event.key == pygame.K_TAB
-                      or event.mod & (pygame.KMOD_ALT | pygame.KMOD_META)):
-                    pass   # swallow window-management keys
-                else:
+                elif event.key == pygame.K_SPACE:
                     pygame.mixer.music.set_volume(pre_pause_vol)
                     state = PLAYING
+                # all other keys silently ignored while paused
 
             # ── GAME OVER ─────────────────────────────────────────────────────
             elif state == GAME_OVER:
@@ -1485,7 +1513,7 @@ def main():
                     if btb_bonus:
                         base_score = int(base_score * 1.5)
 
-                    score += base_score * cascade_mult * danger_mult
+                    score += int(base_score * cascade_mult * danger_mult * reset_bonus_mult)
 
                     # Combo bonus: 50 × combo count × (level + 1); combo = 0 on
                     # first clear in a row (no bonus yet), increments each clear.
@@ -1528,11 +1556,15 @@ def main():
                         speed_tier = min(speed_tier + (level - old_level), 20)
 
                     # Speed reset: every SPEED_RESET_INTERVAL points fall speed
-                    # drops back to tier 1.
+                    # drops back to tier 1, the score multiplier rises by 0.1,
+                    # and Full Cascade Mode toggles on/off.
                     speed_reset_triggered = False
                     while score >= next_speed_reset:
-                        next_speed_reset    += SPEED_RESET_INTERVAL
-                        speed_tier           = 1
+                        next_speed_reset     += SPEED_RESET_INTERVAL
+                        speed_tier            = 1
+                        speed_reset_count    += 1
+                        reset_bonus_mult      = round(1.0 + speed_reset_count * 0.1, 1)
+                        full_cascade_mode     = not full_cascade_mode
                         speed_reset_triggered = True
                     if speed_reset_triggered:
                         speed_reset_flash_timer = SPEED_RESET_FLASH_DURATION
@@ -1595,8 +1627,14 @@ def main():
                     tspin_type = None   # consumed
 
                     # ── cascade check ─────────────────────────────────────────
-                    # Settle floating blocks and look for newly-filled rows.
-                    board.settle_blocks()
+                    # Normal mode: only completely isolated singleton blocks fall.
+                    # Full Cascade Mode (active after each odd speed reset):
+                    #   every block with empty space below it falls — the
+                    #   "Full Board Cascade Effect."
+                    if full_cascade_mode:
+                        board.settle_blocks()
+                    else:
+                        board.apply_singleton_gravity()
                     cascade_rows = board.full_rows()
                     if cascade_rows:
                         # Re-enter CLEARING for the cascade pass.
@@ -1730,6 +1768,7 @@ def main():
             draw_sidebar(screen, score, lines, level, next_piece, best,
                          hold_piece, hold_used,
                          speed_tier, next_speed_reset,
+                         reset_bonus_mult, full_cascade_mode,
                          palette_phase,
                          popup_count, popup_timer)
             pygame.draw.rect(screen, BORDER_COLOR,

@@ -44,6 +44,44 @@ class Board:
             y += 1
         return y
 
+    def apply_singleton_gravity(self) -> bool:
+        """After a row clear, drop only completely isolated blocks.
+
+        A block is a singleton if it has no orthogonally adjacent filled
+        neighbours.  Singletons fall independently to the lowest open row in
+        their column.  Processed bottom-up so multiple singletons in the same
+        column settle in the correct stacking order.
+        Returns True if anything moved.
+        """
+        singletons = []
+        for row in range(ROWS):
+            for col in range(COLS):
+                if not self.grid[row][col]:
+                    continue
+                isolated = all(
+                    not (0 <= row + dr < ROWS and 0 <= col + dc < COLS
+                         and self.grid[row + dr][col + dc])
+                    for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1))
+                )
+                if isolated:
+                    singletons.append((row, col))
+
+        if not singletons:
+            return False
+
+        singletons.sort(reverse=True)   # bottom-up: highest row index first
+        moved = False
+        for row, col in singletons:
+            color  = self.grid[row][col]
+            target = row
+            while target + 1 < ROWS and not self.grid[target + 1][col]:
+                target += 1
+            if target != row:
+                self.grid[target][col] = color
+                self.grid[row][col]    = 0
+                moved = True
+        return moved
+
     def apply_block_gravity(self) -> bool:
         """Move every block that has an empty cell directly below it down one row.
 
