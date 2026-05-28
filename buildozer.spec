@@ -17,7 +17,7 @@ fullscreen      = 1
 # Android SDK/NDK
 android.minapi  = 24
 android.targetapi = 34
-android.ndk     = 25b
+android.ndk     = 28c
 
 # Target 64-bit ARM (all phones since ~2019)
 android.archs   = arm64-v8a
