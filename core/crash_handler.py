@@ -19,7 +19,7 @@ import datetime
 
 import pygame
 
-_HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_HERE = os.environ.get('ANDROID_PRIVATE') or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 _W, _H  = 640, 420
 _BG     = (10,  10,  20)

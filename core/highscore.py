@@ -5,9 +5,16 @@ All functions are stateless reads/writes; there is no in-memory cache.
 A missing or corrupt file is silently treated as an empty leaderboard.
 """
 import json
+import os
 from pathlib import Path
 
-_FILE      = Path(__file__).parent.parent / "highscores.json"
+
+def _data_dir() -> Path:
+    p = os.environ.get('ANDROID_PRIVATE')
+    return Path(p) if p else Path(__file__).parent.parent
+
+
+_FILE      = _data_dir() / "highscores.json"
 MAX_SCORES = 10
 
 

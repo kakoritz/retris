@@ -59,6 +59,14 @@ def handle_input(gs: GameState, app: AppState, dt: int) -> None:
             if app.state == PAUSED:
                 pygame.mixer.music.set_volume(app.pre_pause_vol * 0.10)
 
+        # FINGER events → synthetic keyboard events (Android touch controls)
+        if event.type in (pygame.FINGERDOWN, pygame.FINGERUP, pygame.FINGERMOTION):
+            if app.touch_enabled:
+                import touch_controls as _tc
+                _tc.handle(event, app.touch_dw, app.touch_dh,
+                           app.touch_ox, app.touch_oy, app.touch_scale)
+            continue
+
         # KEYUP: track DAS key releases regardless of state
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_LEFT:

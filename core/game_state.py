@@ -48,10 +48,11 @@ class GameState:
         self.combo_labels: list = []
 
         # ── speed / cascade ───────────────────────────────────────────────────
-        self.speed_tier           = 1
+        self.speed_tier            = 1
         self.level_cascade_pending = False  # True → level-up forces cascade this clear
-        self.cascade_level        = 0       # cascade pass count this lock
-        self.first_clear_tetris   = False   # True if first clear this lock was Tetris
+        self.cascade_level         = 0      # cascade pass count this lock
+        self.first_clear_tetris    = False  # True if first clear this lock was Tetris
+        self.broken_piece_ids: set = set()  # piece IDs that had cells in cleared rows
 
         # ── level-up overlay ─────────────────────────────────────────────────
         self.level_popup_timer  = 0               # ms remaining for "LEVEL N" overlay

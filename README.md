@@ -127,7 +127,7 @@ meaningfully more rewarding.
 ## Requirements
 
 - Python 3.10+
-- pygame ≥ 2.5
+- pygame-ce ≥ 2.5 (community edition — drop-in pygame replacement)
 - numpy ≥ 1.24
 
 ---
@@ -138,6 +138,18 @@ meaningfully more rewarding.
 pip install -r requirements.txt
 python3 main.py
 ```
+
+---
+
+## Android APK
+
+Every merge to `main` automatically builds an Android APK via GitHub Actions.
+
+**To install on your phone:**
+1. Go to the [Releases](../../releases/tag/apk-latest) page
+2. Download `retris-*.apk`
+3. Open the file on your Android device
+4. Enable *Install from unknown sources* if prompted (Settings → Security)
 
 ---
 

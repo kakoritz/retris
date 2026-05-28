@@ -144,6 +144,7 @@ def do_lock(gs: GameState, app: AppState) -> None:
     gs.score     += PLACEMENT_SCORE
     gs.cascade_level      = 0
     gs.first_clear_tetris = False
+    gs.broken_piece_ids   = set()
     full = gs.board.full_rows()
     if full:
         full_set       = set(full)
@@ -345,6 +346,8 @@ def tick_clearing(gs: GameState, app: AppState, dt: int) -> None:
     if gs.cascade_level == 0:
         gs.first_clear_tetris = (gs.clear_count == 4)
 
+    # Record which piece IDs are broken by this clear before the rows are removed.
+    gs.broken_piece_ids |= gs.board.broken_pids_in_rows(list(gs.clear_rows))
     gs.board.clear_lines()
 
     # Color clear: remove every remaining cell of the cleared color.
@@ -388,79 +391,92 @@ def tick_clearing(gs: GameState, app: AppState, dt: int) -> None:
     elif btb_bonus and gs.clear_count == 4:
         gs.popup_count = 7
         gs.popup_timer = POPUP_DURATION
-    elif gs.cascade_level >= 4:
-        gs.popup_count = 12
-        gs.popup_timer = POPUP_DURATION
-    elif gs.cascade_level == 3:
-        gs.popup_count = 11
-        gs.popup_timer = POPUP_DURATION
-    elif gs.cascade_level == 2:
-        gs.popup_count = 10
-        gs.popup_timer = POPUP_DURATION
-    elif gs.cascade_level == 1:
-        gs.popup_count = 9
-        gs.popup_timer = POPUP_DURATION
-    else:
+    elif gs.cascade_level == 0:
+        # First clear of a lock — show the standard count label (Nice/Great/RETRIS)
         gs.popup_count = gs.clear_count
         gs.popup_timer = POPUP_DURATION
+    # Secondary cascade clears get no board popup — sidebar shows "Cascading..." instead
 
     gs.tspin_type = None
 
     # ── cascade check ─────────────────────────────────────────────────────────
-    if gs.level_cascade_pending:
-        gs.level_cascade_pending = False
-        app.cascade_anim_timer   = 0
+    # Only animate if there are actually floating blocks to settle.
+    _floating = any(
+        gs.board.grid[row][col] and not gs.board.grid[row + 1][col]
+        for row in range(ROWS - 1)
+        for col in range(COLS)
+    )
+    if _floating:
+        app.cascade_anim_timer = 0
+        if gs.level_cascade_pending:
+            gs.level_cascade_pending = False
+            app.cascade_col_unlock   = COLS - 1
+            app.cascade_freefall     = True
+        else:
+            app.cascade_col_unlock   = 0
+            app.cascade_freefall     = False
         app.state = CASCADING
     else:
-        gs.board.settle_blocks()
-        cascade_rows = gs.board.full_rows()
-        if cascade_rows:
-            _setup_cascade_clear(gs, cascade_rows)
-            # app.state stays CLEARING for the next pass
+        # Board already settled — skip the animation entirely.
+        gs.level_cascade_pending = False
+        gs.first_clear_tetris    = False
+        gs.cascade_level         = 0
+        if spawn_next(gs, app):
+            app.state = PLAYING
         else:
-            gs.first_clear_tetris = False
-            gs.cascade_level      = 0
-            if spawn_next(gs, app):
-                app.state = PLAYING
-            else:
-                end_game(gs, app)
+            end_game(gs, app)
 
 
 def tick_cascading(gs: GameState, app: AppState, dt: int) -> None:
-    """Advance the full-board cascade animation one step per interval.
+    """Advance the cascade animation one gravity step per tick.
 
-    Called every frame while app.state == CASCADING.
-    Each step drops all floating blocks one row. When the board settles,
-    checks for new full rows (→ CLEARING again) or ends the cascade
-    (awards bonus, spawns next piece).
+    Two modes selected by app.cascade_freefall:
+      True  — Level-up block-free-fall: right-to-left waterfall, all cells
+              independent.  One new column unlocks per tick.
+      False — Normal coherent settle: intact pieces fall as rigid units; only
+              cells whose piece was broken by the clear fall individually.
     """
     app.cascade_anim_timer += dt
-    _cascade_step = min(fall_speed(gs.speed_tier), 300)
-    if app.cascade_anim_timer < _cascade_step:
+    # Freefall waterfall runs at half game speed (min 40 ms); coherent settle at ¼ (min 50 ms).
+    if app.cascade_freefall:
+        step_ms = max(40, fall_speed(gs.speed_tier) // 2)
+    else:
+        step_ms = max(50, fall_speed(gs.speed_tier) // 4)
+    if app.cascade_anim_timer < step_ms:
         return
-    app.cascade_anim_timer -= _cascade_step
+    app.cascade_anim_timer -= step_ms
 
-    if gs.board.apply_block_gravity():
-        return  # board still settling — wait for next step
+    if app.cascade_freefall:
+        # Waterfall: unlock one more column to the left each tick
+        if app.cascade_col_unlock > 0:
+            app.cascade_col_unlock -= 1
+        moved = gs.board.apply_block_gravity_from_col(app.cascade_col_unlock)
+        if moved or app.cascade_col_unlock > 0:
+            return
+    else:
+        # Coherent settle: intact pieces fall as units, one step at a time
+        if gs.board.apply_piece_gravity(gs.broken_piece_ids):
+            return
 
+    # Board fully settled — check for new full rows
     cascade_rows = gs.board.full_rows()
     if cascade_rows:
         _setup_cascade_clear(gs, cascade_rows)
         app.state = CLEARING
     else:
-        # Cascade fully settled — award a small end-of-cascade bonus.
-        cascade_end_bonus = 500 * (gs.cascade_level + 1)
-        gs.score += cascade_end_bonus
-        gs.score_deltas.append({
-            'text':      f"+{cascade_end_bonus:,}",
-            'color':     (80, 255, 180),
-            'x':         float(BOARD_WIDTH * 0.68),
-            'y':         float(BOARD_HEIGHT * 0.45),
-            'vy':        -60.0,
-            'timer':     1600,
-            'max_timer': 1600,
-        })
-        app.best              = max(app.best, gs.score)
+        if app.cascade_freefall:
+            cascade_end_bonus = 500 * (gs.cascade_level + 1)
+            gs.score += cascade_end_bonus
+            gs.score_deltas.append({
+                'text':      f"+{cascade_end_bonus:,}",
+                'color':     (80, 255, 180),
+                'x':         float(BOARD_WIDTH * 0.68),
+                'y':         float(BOARD_HEIGHT * 0.45),
+                'vy':        -60.0,
+                'timer':     1600,
+                'max_timer': 1600,
+            })
+            app.best = max(app.best, gs.score)
         gs.first_clear_tetris = False
         gs.cascade_level      = 0
         if spawn_next(gs, app):

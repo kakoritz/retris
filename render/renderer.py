@@ -326,6 +326,28 @@ def draw_popup(surf: pygame.Surface, count: int, timer: int) -> None:
     surf.blit(t, (BOARD_WIDTH // 2 - tw // 2, y))
 
 
+# ── touch controls overlay ───────────────────────────────────────────────────
+
+def draw_touch_controls(surf: pygame.Surface) -> None:
+    """Overlay semi-transparent virtual D-pad buttons at the screen bottom."""
+    btn_h = 65
+    btn_y = SCREEN_HEIGHT - btn_h
+    btn_w = SCREEN_WIDTH // 6
+    labels = ['◄', '↺', '▼', '▲', '↻', '□']
+
+    bg = pygame.Surface((SCREEN_WIDTH, btn_h), pygame.SRCALPHA)
+    bg.fill((0, 0, 0, 150))
+    surf.blit(bg, (0, btn_y))
+
+    for i, label in enumerate(labels):
+        w = btn_w if i < 5 else SCREEN_WIDTH - btn_w * 5
+        x = btn_w * i
+        pygame.draw.rect(surf, (70, 70, 90), (x, btn_y, w, btn_h), 1)
+        t = _font(20).render(label, True, (190, 190, 210))
+        surf.blit(t, (x + (w - t.get_width()) // 2,
+                      btn_y + (btn_h - t.get_height()) // 2))
+
+
 # ── sidebar ───────────────────────────────────────────────────────────────────
 
 def draw_sidebar(surf: pygame.Surface, score: int, lines: int,
@@ -338,7 +360,9 @@ def draw_sidebar(surf: pygame.Surface, score: int, lines: int,
                  combo: int = 0, level_up_flash_timer: int = 0,
                  score_digits: list | None = None,
                  score_anim_from: list | None = None,
-                 score_anim_offs: list | None = None) -> None:
+                 score_anim_offs: list | None = None,
+                 cascading: bool = False,
+                 cascade_freefall: bool = False) -> None:
     sx = BOARD_WIDTH + 12
 
     def lbl(text, y): surf.blit(_font(13).render(text, True, BORDER_COLOR), (sx, y))
@@ -474,6 +498,18 @@ def draw_sidebar(surf: pygame.Surface, score: int, lines: int,
     for i, h in enumerate(["<> move  ^ rot  Z ccw",
                             "v drop  SPC hard  C hold"]):
         surf.blit(_font(10).render(h, True, BORDER_COLOR), (sx, ctrl_y + i * 14))
+
+    # ── cascade indicator ────────────────────────────────────────────────────
+    if cascading:
+        t_ms = pygame.time.get_ticks()
+        if cascade_freefall:
+            hue   = (t_ms / 1200.0) % 1.0
+            r, g, b = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
+            cas_col = (int(r * 255), int(g * 255), int(b * 255))
+        else:
+            cas_col = (60, 160, 160)
+        cas_y = ctrl_y + 32
+        surf.blit(_font(10).render("Cascading...", True, cas_col), (sx, cas_y))
 
     draw_popup(surf, popup_count, popup_timer)
 

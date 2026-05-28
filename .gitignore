@@ -15,4 +15,9 @@ crash_latest.log
 
 # virtual envs
 venv/
+.venv/
 .env/
+
+# buildozer local build cache and APK output
+.buildozer/
+bin/

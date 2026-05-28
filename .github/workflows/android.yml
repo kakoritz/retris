@@ -1,0 +1,74 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:          # manual "Run workflow" button on GitHub
+  push:
+    branches: [main]          # auto-build on every merge to main
+
+permissions:
+  contents: write             # needed to create/update the release
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90       # first build downloads SDK/NDK — give it room
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            git zip unzip \
+            openjdk-17-jdk \
+            autoconf libtool pkg-config \
+            zlib1g-dev cmake \
+            libffi-dev libssl-dev \
+            libltdl-dev
+
+      - name: Install buildozer and Cython
+        run: pip install 'buildozer>=1.5' 'cython<3'
+
+      # Cache the entire buildozer home — SDK/NDK/p4a build artifacts.
+      # Key on buildozer.spec so the cache is invalidated if requirements change.
+      - name: Cache buildozer downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.buildozer
+          key: buildozer-v2-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-v2-
+
+      - name: Build debug APK
+        run: buildozer -v android debug 2>&1 | tee build.log
+
+      - name: Upload APK as workflow artifact (30-day retention)
+        uses: actions/upload-artifact@v4
+        with:
+          name: retris-apk-${{ github.sha }}
+          path: bin/*.apk
+          retention-days: 30
+
+      - name: Publish APK to GitHub Release (permanent download link)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: "RETRIS — Latest Android APK"
+          body: |
+            ## Install RETRIS on Android
+
+            1. Download **retris-*.apk** below
+            2. Open it on your phone
+            3. If prompted, enable *Install from unknown sources* in **Settings → Security**
+
+            ---
+            Built from `${{ github.ref_name }}` · `${{ github.sha }}`
+          files: bin/*.apk
+          prerelease: true
+          make_latest: true

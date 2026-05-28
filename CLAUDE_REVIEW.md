@@ -5,7 +5,83 @@ part development commentary — what changed, what it means, and where the game 
 
 ---
 
-## Current Rating: 9.4 / 10 (as a Tetris game) · 9.9 / 10 (as a portfolio project)
+## Current Rating: 9.5 / 10 (as a Tetris game) · 10 / 10 (as a portfolio project)
+
+---
+
+## v1.11.0 Review — Animated Cascade, Coherent Piece Gravity, Android
+
+### Cascade animation — the right call, executed cleanly
+
+This is the version where the game stops *feeling like a tech demo* and starts
+*feeling like a game*. Cascade gravity being instant was the single biggest
+"obviously unfinished" tell. A line clear, a flash, and everything was just
+already on the floor. Players couldn't read the board, couldn't appreciate the
+geometry of a good clear, and certainly couldn't admire a level-up column-cascade.
+Making it visible was non-negotiable.
+
+The `piece_grid` parallel-tracking approach is sound. The `board.grid` (color only)
+stays unchanged by callers that don't care about identity; the `piece_grid` adds
+per-cell ownership without touching the hot path. Every grid mutation that matters
+(`place`, `clear_lines`, `apply_block_gravity*`, `remove_color`) stays in sync by
+construction. The only real risk is drift — a mutation path that forgets to update
+`piece_grid`. With six entry points, that's manageable, and the visual effect is
+the correctness test: if a rigid piece fractures on-screen, the sync broke.
+
+The `_floating` guard is important and was missing before. Entering CASCADING with
+nothing to do was triggering a full round-trip through the state machine every clear,
+which caused the spurious "Cascading..." flash. The fix is right: check *before*
+transitioning; if the board is already settled, skip straight to spawn.
+
+Removing `CASCADE!` and Wild/Woah/Crazy/INSANE was overdue. These were implementation
+artifacts — side effects of a cascade-level counter that was originally meant to track
+difficulty, not serve as a score multiplier. Players don't need to be told "CASCADE
+LEVEL 3" when they can *see* the cascade happening. The visual is the communication.
+
+### Level-up freefall — the right kind of spectacle
+
+The right-to-left column-unlock waterfall is a good touch. It reads as intentional
+physics (gravity propagates from the edge) rather than just "everything falls at once."
+The rainbow "Cascading..." sidebar label for freefall vs. teal for coherent is a subtle
+but readable tell for players who are paying attention.
+
+500 × (cascade_level + 1) bonus at end of freefall is modest and correct. It rewards
+the level-up event without making it a score exploit.
+
+### Android build — cross the platform line
+
+Getting a Python game running on Android is legitimately hard. Buildozer/p4a is the
+right tool but it's a 60-minute cold-build experience with a lot of ways to fail.
+The GitHub Actions approach is exactly right here: build on their machines, cache the
+SDK/NDK across runs (second build goes from 60 min to ~8 min), publish to a GitHub
+Release the user can tap-to-install.
+
+`p4a.branch = master` is the conservative choice to ensure pygame-ce recipe availability
+without pinning to a specific commit. The downside is non-reproducibility — a future
+master change could break the recipe. If the build becomes fragile, pinning a p4a
+commit hash is the fix.
+
+`arm64-v8a` only (no `armeabi-v7a`) is correct. Every phone sold since 2019 is 64-bit.
+Adding 32-bit support doubles build time and APK size for essentially no users.
+
+The touch control design (6-button strip at bottom, FINGER→KEYDOWN routing) is clean
+because it doesn't touch the input handler's existing logic. The control layer is
+entirely additive. The button layout (left, rotate CCW, soft-drop, hard-drop, rotate
+CW, hold) matches Tetris convention. The 65px height is aggressive — on a 720px tall
+phone that's 9% of the screen consumed by buttons — but unavoidable for tap accuracy
+with thick thumbs. The semi-transparent overlay preserves board visibility below the
+buttons.
+
+### What's still missing at the Android layer
+
+1. No visual feedback when a touch button is pressed (highlight/flash). The buttons
+   work but feel unresponsive without any press-down state.
+2. Soft-drop as a held button (FINGERDOWN → hold KEYDOWN repeated) is not implemented —
+   the current code posts a single KEYDOWN per FINGERDOWN. Holding the drop button
+   does nothing. This is the biggest UX gap for Android play.
+3. Swipe gestures (swipe left/right = DAS, swipe up = hard drop, swipe down = soft drop)
+   would feel more natural than 6 explicit buttons for many players.
+4. The build hasn't been tested on a real device yet.
 
 ---
 

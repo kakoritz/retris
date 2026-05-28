@@ -72,6 +72,8 @@ class AppState:
         self.blink_on:          bool  = True
         self.pre_pause_vol:     float = 0.0
         self.cascade_anim_timer: int  = 0
+        self.cascade_col_unlock: int  = 0   # waterfall: columns >= this fall; counts down 9→0
+        self.cascade_freefall:   bool = False  # True = level-up block-free-fall; False = coherent
 
         # ── music preview ─────────────────────────────────────────────────────
         self.music_test_tier: int = 1
@@ -101,6 +103,14 @@ class AppState:
         self.demo_scenario_wait_ms: int  = 0
         self.demo_label:            str  = ''
         self.menu_idle_timer:       int  = 0          # ms since last key at menu
+
+        # ── touch / Android ──────────────────────────────────────────────────
+        self.touch_enabled: bool  = False
+        self.touch_dw:      int   = 0       # display pixel width  (FINGER coord space)
+        self.touch_dh:      int   = 0       # display pixel height
+        self.touch_ox:      int   = 0       # letterbox x offset in display pixels
+        self.touch_oy:      int   = 0       # letterbox y offset in display pixels
+        self.touch_scale:   float = 1.0     # display→logical pixel scale factor
 
         # ── debug cheat sequences ─────────────────────────────────────────────
         self._cheat_seq: list = []   # 3-2-1 WOW trigger

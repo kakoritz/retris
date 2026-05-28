@@ -6,9 +6,16 @@ one part of the game are immediately visible to another without restart.
 Missing or corrupt config.json silently falls back to _DEFAULTS.
 """
 import json
+import os
 from pathlib import Path
 
-_FILE = Path(__file__).parent.parent / "config.json"
+
+def _data_dir() -> Path:
+    p = os.environ.get('ANDROID_PRIVATE')
+    return Path(p) if p else Path(__file__).parent.parent
+
+
+_FILE = _data_dir() / "config.json"
 
 _DEFAULTS = {"scale": 1.5, "ghost_opacity": 15, "das_preset": "normal"}
 

@@ -19,6 +19,7 @@ for _d in ("core", "sounds", "render", "logic"):
 del _os, _d, _p, _ROOT
 
 import colorsys
+import os
 import random
 import pygame
 import sys
@@ -42,6 +43,7 @@ from renderer import (
     draw_level_up_overlay, draw_demo_overlay,
     draw_settings, draw_pause, draw_music_test,
     draw_menu, draw_name_entry, draw_leaderboard,
+    draw_touch_controls,
 )
 from game_constants import (
     LOCK_DELAY, GRAVITY_20G_LEVEL,
@@ -106,8 +108,20 @@ def main():
 
     pygame.display.set_icon(_build_icon())
 
-    current_scale = config.get_scale()
-    display       = _make_display(current_scale)
+    _android = 'ANDROID_ARGUMENT' in os.environ
+    if _android:
+        display       = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        _dw, _dh      = display.get_size()
+        current_scale = min(_dw / SCREEN_WIDTH, _dh / SCREEN_HEIGHT)
+        _lw           = int(SCREEN_WIDTH  * current_scale)
+        _lh           = int(SCREEN_HEIGHT * current_scale)
+        _touch_ox     = (_dw - _lw) // 2
+        _touch_oy     = (_dh - _lh) // 2
+    else:
+        current_scale = config.get_scale()
+        display       = _make_display(current_scale)
+        _dw, _dh      = display.get_size()
+        _touch_ox = _touch_oy = 0
 
     if pygame.display.get_driver() == "offscreen":
         print(
@@ -129,6 +143,14 @@ def main():
     gs.reset()
     app = AppState(display, screen, current_scale)
     app.best = highscore.best()
+
+    if _android:
+        app.touch_enabled = True
+        app.touch_dw      = _dw
+        app.touch_dh      = _dh
+        app.touch_ox      = _touch_ox
+        app.touch_oy      = _touch_oy
+        app.touch_scale   = current_scale
 
     while True:
         dt = clock.tick(FPS)
@@ -290,19 +312,6 @@ def main():
                 fl.fill((255, 255, 255, alpha))
                 bsurf.blit(fl, (0, 0))
 
-            if app.state == CASCADING:
-                h   = (pygame.time.get_ticks() / 120) % 1.0
-                rgb = tuple(int(c * 255) for c in colorsys.hsv_to_rgb(h, 1.0, 1.0))
-                cas_t = _font(30).render("CASCADE!", True, rgb)
-                cx    = BOARD_WIDTH  // 2 - cas_t.get_width()  // 2
-                cy    = BOARD_HEIGHT // 2 - cas_t.get_height() // 2
-                pad   = 8
-                bg    = pygame.Surface((cas_t.get_width() + pad * 2,
-                                        cas_t.get_height() + pad * 2), pygame.SRCALPHA)
-                bg.fill((0, 0, 0, 160))
-                bsurf.blit(bg, (cx - pad, cy - pad))
-                bsurf.blit(cas_t, (cx, cy))
-
             if app.state == GAME_OVER:
                 draw_game_over_overlay(bsurf, gs.score,
                                        gs.stat_pieces, gs.stat_tetrises, gs.stat_tspins,
@@ -350,7 +359,9 @@ def main():
                          gs.popup_count, gs.popup_timer,
                          gs.next_flash_timer, gs.hold_piece is not None,
                          gs.combo, gs.level_up_flash_timer,
-                         app.score_disp_digits, app.score_anim_from, app.score_anim_offs)
+                         app.score_disp_digits, app.score_anim_from, app.score_anim_offs,
+                         cascading=app.state == CASCADING,
+                         cascade_freefall=app.cascade_freefall)
             pygame.draw.rect(app.screen, BORDER_COLOR,
                              (0, 0, BOARD_WIDTH, BOARD_HEIGHT), 1)
             pygame.draw.line(app.screen, BORDER_COLOR,
@@ -374,7 +385,20 @@ def main():
         elif app.state == MUSIC_TEST:
             draw_music_test(app.screen, app.music_test_tier)
 
-        if app.current_scale == 1.0:
+        # Touch D-pad overlay (Android only)
+        if app.touch_enabled:
+            draw_touch_controls(app.screen)
+
+        # Blit logical surface → physical display
+        if app.touch_enabled:
+            lw = int(SCREEN_WIDTH  * app.current_scale)
+            lh = int(SCREEN_HEIGHT * app.current_scale)
+            app.display.fill((0, 0, 0))
+            app.display.blit(
+                pygame.transform.smoothscale(app.screen, (lw, lh)),
+                (app.touch_ox, app.touch_oy),
+            )
+        elif app.current_scale == 1.0:
             app.display.blit(app.screen, (0, 0))
         else:
             pygame.transform.smoothscale(app.screen, app.display.get_size(), app.display)
