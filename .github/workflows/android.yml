@@ -11,7 +11,7 @@ permissions:
 jobs:
   build-apk:
     runs-on: ubuntu-22.04
-    timeout-minutes: 90
+    timeout-minutes: 90       # first build downloads SDK/NDK — give it room
 
     steps:
       - uses: actions/checkout@v4
@@ -35,27 +35,16 @@ jobs:
       - name: Install buildozer and Cython
         run: pip install 'buildozer>=1.5' 'cython<3'
 
-      # The ubuntu-22.04 runner ships with Android SDK + NDK pre-installed.
-      # Point buildozer at them so it skips the 700 MB download.
-      - name: Point buildozer at pre-installed Android SDK/NDK
-        run: |
-          mkdir -p ~/.buildozer/android/platform
-          ln -sf /usr/local/lib/android/sdk \
-            ~/.buildozer/android/platform/android-sdk
-          # NDK r25b is what buildozer.spec requests; the runner has a newer one,
-          # so we symlink it under the name buildozer expects.
-          NDK_DIR=$(ls /usr/local/lib/android/sdk/ndk/ | sort -V | tail -1)
-          ln -sf /usr/local/lib/android/sdk/ndk/$NDK_DIR \
-            ~/.buildozer/android/platform/android-ndk-r25b
-
-      # Cache compiled p4a build artifacts (not the SDK — that's pre-installed).
-      - name: Cache p4a build artifacts
+      # Cache buildozer's entire home dir: SDK, NDK, p4a build artifacts.
+      # Key changes when buildozer.spec changes; prefix fallback restores
+      # older SDK/NDK downloads so they are not re-fetched.
+      - name: Cache buildozer downloads
         uses: actions/cache@v4
         with:
-          path: ~/.buildozer/android/platform/build-*
-          key: p4a-v1-${{ hashFiles('buildozer.spec') }}
+          path: ~/.buildozer
+          key: buildozer-v2-${{ hashFiles('buildozer.spec') }}
           restore-keys: |
-            p4a-v1-
+            buildozer-v2-
 
       - name: Build debug APK
         run: buildozer -v android debug 2>&1 | tee build.log
