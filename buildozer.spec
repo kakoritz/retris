@@ -15,7 +15,7 @@ orientation     = portrait
 fullscreen      = 1
 
 # Android SDK/NDK
-android.minapi  = 21
+android.minapi  = 24
 android.targetapi = 34
 android.ndk     = 25b
 
