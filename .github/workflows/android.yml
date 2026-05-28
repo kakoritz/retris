@@ -11,7 +11,7 @@ permissions:
 jobs:
   build-apk:
     runs-on: ubuntu-22.04
-    timeout-minutes: 90       # first build downloads SDK/NDK — give it room
+    timeout-minutes: 90
 
     steps:
       - uses: actions/checkout@v4
@@ -35,18 +35,37 @@ jobs:
       - name: Install buildozer and Cython
         run: pip install 'buildozer>=1.5' 'cython<3'
 
-      # Cache the entire buildozer home — SDK/NDK/p4a build artifacts.
-      # Key on buildozer.spec so the cache is invalidated if requirements change.
-      - name: Cache buildozer downloads
+      # The ubuntu-22.04 runner ships with Android SDK + NDK pre-installed.
+      # Point buildozer at them so it skips the 700 MB download.
+      - name: Point buildozer at pre-installed Android SDK/NDK
+        run: |
+          mkdir -p ~/.buildozer/android/platform
+          ln -sf /usr/local/lib/android/sdk \
+            ~/.buildozer/android/platform/android-sdk
+          # NDK r25b is what buildozer.spec requests; the runner has a newer one,
+          # so we symlink it under the name buildozer expects.
+          NDK_DIR=$(ls /usr/local/lib/android/sdk/ndk/ | sort -V | tail -1)
+          ln -sf /usr/local/lib/android/sdk/ndk/$NDK_DIR \
+            ~/.buildozer/android/platform/android-ndk-r25b
+
+      # Cache compiled p4a build artifacts (not the SDK — that's pre-installed).
+      - name: Cache p4a build artifacts
         uses: actions/cache@v4
         with:
-          path: ~/.buildozer
-          key: buildozer-v2-${{ hashFiles('buildozer.spec') }}
+          path: ~/.buildozer/android/platform/build-*
+          key: p4a-v1-${{ hashFiles('buildozer.spec') }}
           restore-keys: |
-            buildozer-v2-
+            p4a-v1-
 
       - name: Build debug APK
         run: buildozer -v android debug 2>&1 | tee build.log
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ github.sha }}
+          path: build.log
 
       - name: Upload APK as workflow artifact (30-day retention)
         uses: actions/upload-artifact@v4

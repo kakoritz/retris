@@ -8,8 +8,8 @@ source.exclude_dirs = tests, .git, .claude, __pycache__, .venv
 
 version         = 1.10.3
 
-# pygame-ce + numpy — all sound/graphics generated at runtime, no asset files
-requirements    = python3,pygame-ce,numpy
+# pygame2 = p4a recipe name for pygame 2.x; pygame-ce is desktop-only
+requirements    = python3,pygame2,numpy
 
 orientation     = portrait
 fullscreen      = 1
@@ -24,9 +24,6 @@ android.archs   = arm64-v8a
 
 # Accept SDK licences non-interactively (required for CI)
 android.accept_sdk_license = True
-
-# Use latest python-for-android for pygame-ce recipe support
-p4a.branch = master
 
 # No special permissions needed (no network, no external storage)
 android.permissions =
