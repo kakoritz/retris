@@ -226,15 +226,28 @@ teleport. BEST is always static (faded appearance). SCORE rolls live.
 
 ### 4.4 Cascade gravity
 
-After every line clear, blocks that are now floating fall:
+After every line clear, blocks that are now floating fall. The cascade is always
+animated — never instant — so the player can read the board state as it settles.
 
-- **Normal mode:** all floating blocks settle instantly (full block gravity, no bonus).
-- **Full Board Cascade mode:** blocks fall one row at a rate matching the current
-  fall speed (`fall_speed(speed_tier)`, capped at 300 ms), creating an animated
-  domino wave. The cascade decelerates at low speed tiers (slow, readable) and
-  accelerates as the game intensifies (tight, urgent). New complete rows created
-  by the cascade clear again at an increasing multiplier (2× → 3× → 4×, capped at
-  4×). A "CASCADE!" rainbow overlay appears on the board during the animation.
+**Coherent piece gravity (normal cascade):**
+Cells track which piece placed them via a parallel `piece_grid`. Pieces not split
+by the line clear fall as rigid units (all cells together, one row per step).
+Cells whose piece was split by the clear fall individually. This makes the board
+read correctly — a T-piece that was untouched stays a T-shape as it falls.
+
+Step speed: `max(50, fall_speed(speed_tier) // 4)` ms per row.
+
+**Freefall cascade (level-up event):**
+On every level-up, a special freefall cascade fires: all cells become independent
+(coherency is abandoned) and columns unlock right-to-left (col 9 → 0) one step
+at a time, creating a waterfall effect. Freefall is 2× faster than coherent mode.
+A 500 × (cascade_level + 1) point bonus fires at the end.
+
+Both modes feed back into CLEARING if new complete rows are created during settle.
+
+**Cascade indicator:** A small "Cascading..." label appears in the sidebar bottom-right
+during any cascade. Teal for coherent; rainbow for freefall. No board overlay.
+The indicator only appears when blocks are actually in motion.
 
 ---
 
@@ -334,6 +347,49 @@ board-wide cyan explosion visually obvious when the Color Clear fires.
 
 The "DEMO" label and current scenario name are overlaid on the board. `Space` or `Esc`
 returns to the menu from any demo phase.
+
+---
+
+## 6.7 Android Build
+
+RETRIS is packaged as a standard Android APK using **Buildozer + python-for-android**.
+Every push to `main` (and on-demand via `workflow_dispatch`) triggers a GitHub Actions
+build that compiles the Python source and pygame-ce into a native ARM64 APK and
+publishes it to the `apk-latest` GitHub Release. Users download and sideload.
+
+### Runtime detection
+
+The presence of `ANDROID_ARGUMENT` in the environment signals an Android runtime:
+- Display: `pygame.FULLSCREEN` at device resolution; logical 460×600 content is
+  letterboxed and scaled with black bars. Touch offsets (`touch_ox`, `touch_oy`) map
+  finger coordinates to logical space.
+- Storage: `ANDROID_PRIVATE` overrides the config/highscore paths so saves persist
+  in the app's private storage directory.
+
+### Touch controls
+
+A 65-pixel strip at the bottom of the screen renders 6 buttons:
+
+| Button | Key | Label |
+|--------|-----|-------|
+| Left | ← | ◄ |
+| Rotate CCW | Z | ↺ |
+| Soft-drop | ↓ | ▼ |
+| Hard-drop | Space | ▲ |
+| Rotate CW | ↑ | ↻ |
+| Hold | C | □ |
+
+`FINGERDOWN/UP/MOTION` events are converted to `KEYDOWN/KEYUP` synthetic events and
+posted to the pygame event queue. The existing `input_handler.py` processes them
+unchanged. FINGERMOTION handles sliding from one button to another mid-gesture.
+
+### Build spec highlights
+
+- `android.archs = arm64-v8a` — 64-bit only (all phones since 2019)
+- `android.accept_sdk_license = True` — non-interactive CI builds
+- `p4a.branch = master` — latest python-for-android for pygame-ce recipe support
+- `android.meta_data = audio.buffer_size:1024` — reduced mixer buffer for lower
+  audio latency on Android
 
 ---
 

@@ -2,6 +2,41 @@
 
 ---
 
+## v1.11.0 — Animated Cascade, Coherent Piece Gravity, Android APK Build
+*2026-05-28*
+
+### Added
+- **Android APK build pipeline** — GitHub Actions workflow builds a signed debug
+  APK on every merge to `main` and publishes it to the `apk-latest` GitHub Release.
+  One-tap download and install from any Android phone.
+- **Touch controls** — 6-button strip at screen bottom (left, rotate CCW, soft-drop,
+  hard-drop, rotate CW, hold) routes FINGER events through the existing input handler
+  unchanged. Active only when `ANDROID_ARGUMENT` env var is present.
+- **Coherent piece gravity** — line-clear cascades now track which pieces were split
+  by the clear (`piece_grid` parallel to `board.grid`). Intact pieces fall as rigid
+  units; only cells whose row was cleared fall individually. Boards look physically
+  correct during multi-clear cascades.
+- **Animated cascade settle** — every cascade step is now visible; speed tied to
+  current game speed_tier.
+
+### Changed
+- **Level-up cascade** is a right-to-left waterfall freefall: all cells independent,
+  columns unlock 9 → 0, running at 2× the normal cascade speed.
+- **Cascade indicator** — replaced the full-board `CASCADE!` overlay with a small
+  "Cascading..." label in the sidebar bottom-right; teal for coherent, rainbow for
+  freefall. Silent during normal play if nothing needs to fall.
+- **Wild / Woah / Crazy / INSANE** cascade-level popups removed — cascade is now a
+  silent mechanic; only the initial line-clear popup fires.
+- `config.py` and `highscore.py` write to `ANDROID_PRIVATE` path on Android so saves
+  survive between sessions.
+
+### Fixed
+- `CASCADE!` board overlay was drawn every frame during CASCADING — removed entirely.
+- "Cascading..." sidebar label appeared even when the board was already settled.
+- Cascade entered on every line clear regardless of whether any block was floating.
+
+---
+
 ## v1.10.3 — Game renamed to RETRIS
 *2026-05-27*
 
