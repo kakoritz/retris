@@ -36,11 +36,12 @@ jobs:
     permissions:
       pull-requests: write
       contents: write
+      actions: write
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create PR if none exists, then squash-merge
+      - name: Create PR if none exists, enable auto-merge, then dispatch APK build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -56,22 +57,40 @@ jobs:
           else
             echo "Using existing PR #$pr"
           fi
-          # Wait up to 60 s for the PR's required status check to register,
-          # then enable auto-merge (GitHub merges it once checks pass).
+
+          # Enable auto-merge; GitHub will merge when all required checks pass.
+          # --auto fails with "unstable status" if the PR check hasn't registered
+          # yet — that's fine, we retry and fall back to || true.
           for i in $(seq 1 6); do
             state=$(gh pr view "$pr" --json statusCheckRollup --jq '.statusCheckRollup // [] | map(select(.context=="test")) | .[0].state // "PENDING"')
             echo "Check state: $state (attempt $i)"
             if [ "$state" = "SUCCESS" ]; then
-              gh pr merge "$pr" --squash --auto
-              break
+              gh pr merge "$pr" --squash --auto && break
             elif [ "$state" = "FAILURE" ] || [ "$state" = "ERROR" ]; then
               echo "Required check failed — not merging"
               exit 1
             fi
             sleep 10
           done
-          # If check hasn't appeared yet, enable auto-merge and let it fire when ready
           if [ "$state" != "SUCCESS" ]; then
             echo "Check not yet complete — enabling auto-merge"
             gh pr merge "$pr" --squash --auto || true
+          fi
+
+          # GITHUB_TOKEN merges do NOT trigger push events on main, so the
+          # android.yml workflow_dispatch must be fired explicitly here.
+          # Poll up to 3 minutes for the PR to actually merge, then dispatch.
+          echo "Waiting for PR #$pr to merge…"
+          for i in $(seq 1 18); do
+            merged=$(gh pr view "$pr" --json state --jq '.state')
+            if [ "$merged" = "MERGED" ]; then
+              echo "PR merged — dispatching APK build"
+              gh workflow run android.yml --ref main
+              break
+            fi
+            echo "PR state: $merged (attempt $i)"
+            sleep 10
+          done
+          if [ "$merged" != "MERGED" ]; then
+            echo "PR not yet merged after 3 min — APK build must be triggered manually"
           fi
