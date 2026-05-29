@@ -4,7 +4,7 @@ package.name    = retris
 package.domain  = org.kakoritz
 source.dir      = .
 source.include_exts = py,json
-source.exclude_dirs = tests, .git, .claude, __pycache__, .venv
+source.exclude_dirs = tests, .git, .claude, __pycache__, .venv, custom_recipes
 
 version         = 1.10.3
 
@@ -31,9 +31,11 @@ android.permissions = INTERNET
 # Smaller mixer buffer for lower Android audio latency
 android.meta_data = audio.buffer_size=1024
 
-# Icon — generated at runtime; placeholder satisfies the build system
-# Replace with a real 512×512 PNG if desired
-# icon.filename = %(source.dir)s/icon.png
+icon.filename = %(source.dir)s/icon.png
+
+# Custom p4a recipe: forces ARM64 pygame_ce wheel download (p4a's default
+# pip fallback runs on x86_64 host and grabs the wrong architecture wheel)
+p4a.local_recipes = ./custom_recipes
 
 [buildozer]
 log_level = 2
