@@ -10,52 +10,95 @@ Responsibilities:
 
 Entry point: run_with_crash_handler(main) at the bottom of the file.
 """
-import os as _os, sys as _sys
+import os as _os, sys as _sys, traceback as _tb
 _ROOT = _os.path.dirname(_os.path.abspath(__file__))
 for _d in ("core", "sounds", "render", "logic"):
     _p = _os.path.join(_ROOT, _d)
     if _p not in _sys.path:
         _sys.path.insert(0, _p)
-del _os, _d, _p, _ROOT
+del _d, _p
 
-import colorsys
-import os
-import random
-import pygame
-import sys
+# ── early boot crash logger ────────────────────────────────────────────────────
+# Catches import-time crashes BEFORE crash_handler (which requires pygame) can
+# run.  Writes crash_latest.log to ANDROID_PRIVATE (phone: app data dir) or
+# next to main.py (desktop).  Pull with: adb pull /data/data/org.kakoritz.retris/files/crash_latest.log
+_BOOT_DIR = _os.environ.get('ANDROID_PRIVATE', _ROOT)
+_BOOT_LOG  = _os.path.join(_BOOT_DIR, 'crash_latest.log')
 
-import audio
-audio.pre_init()
+def _boot_step(tag: str) -> None:
+    msg = f'[RETRIS] {tag}'
+    print(msg, flush=True)
+    try:
+        with open(_BOOT_LOG, 'a') as _f:
+            _f.write(msg + '\n')
+    except Exception:
+        pass
 
-import config
-import highscore
-import music
-import music_game
-from particles import update as update_particles, draw as draw_particles
-from constants import (
-    BOARD_WIDTH, BOARD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT,
-    FPS, BG_COLOR, BORDER_COLOR, fall_speed,
-)
-from renderer import (
-    _font,
-    draw_board, _draw_danger_line, draw_piece, draw_ghost,
-    draw_sidebar, draw_game_over_overlay,
-    draw_level_up_overlay, draw_demo_overlay,
-    draw_settings, draw_pause, draw_music_test,
-    draw_menu, draw_name_entry, draw_leaderboard,
-    draw_touch_controls, draw_about, draw_controls, draw_ingame_gear,
-)
-from game_constants import (
-    LOCK_DELAY, GRAVITY_20G_LEVEL,
-    SHAKE_DURATION, SHAKE_INTENSITY, HD_FLASH_DURATION,
-    VERSION,
-)
-from game_state import GameState
-from app_state import AppState
-from game_logic import spawn_next, end_game, do_lock, tick_clearing, tick_cascading
-from input_handler import handle_input, MUSIC_END
-import demo as demo_mod
-from updater import UpdateChecker
+def _boot_crash(tag: str) -> None:
+    msg = f'[RETRIS] CRASH at [{tag}]:\n{_tb.format_exc()}'
+    print(msg, flush=True)
+    try:
+        with open(_BOOT_LOG, 'w') as _f:
+            _f.write(msg)
+    except Exception:
+        pass
+    _sys.exit(1)
+
+del _ROOT
+_boot_step('boot start')
+
+try:
+    import colorsys
+    import os
+    import random
+    import pygame
+    _boot_step('pygame import ok')
+except Exception:
+    _boot_crash('importing pygame')
+
+try:
+    import sys
+    import audio
+    audio.pre_init()
+    _boot_step('audio pre_init ok')
+except Exception:
+    _boot_crash('audio.pre_init')
+
+try:
+    import config
+    import highscore
+    import music
+    import music_game
+    from particles import update as update_particles, draw as draw_particles
+    from constants import (
+        BOARD_WIDTH, BOARD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT,
+        FPS, BG_COLOR, BORDER_COLOR, fall_speed,
+    )
+    from renderer import (
+        _font,
+        draw_board, _draw_danger_line, draw_piece, draw_ghost,
+        draw_sidebar, draw_game_over_overlay,
+        draw_level_up_overlay, draw_demo_overlay,
+        draw_settings, draw_pause, draw_music_test,
+        draw_menu, draw_name_entry, draw_leaderboard,
+        draw_touch_controls, draw_about, draw_controls, draw_ingame_gear,
+    )
+    from game_constants import (
+        LOCK_DELAY, GRAVITY_20G_LEVEL,
+        SHAKE_DURATION, SHAKE_INTENSITY, HD_FLASH_DURATION,
+        VERSION,
+    )
+    from game_state import GameState
+    from app_state import AppState
+    from game_logic import spawn_next, end_game, do_lock, tick_clearing, tick_cascading
+    from input_handler import handle_input, MUSIC_END
+    import demo as demo_mod
+    from updater import UpdateChecker
+    _boot_step('all imports ok')
+except Exception:
+    _boot_crash('importing game modules')
+
+del _os, _tb, _boot_step, _boot_crash, _BOOT_DIR, _BOOT_LOG
 
 # ── states ────────────────────────────────────────────────────────────────────
 MENU        = "menu"
