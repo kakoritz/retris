@@ -9,6 +9,56 @@ part development commentary — what changed, what it means, and where the game 
 
 ---
 
+## v1.11.0 Review — Update Checker, Menu Redesign, Build Fix
+
+### Menu redesign — the right direction, first pass
+
+The old menu was technically functional but ergonomically stuck in desktop-keyboard
+land: six lines of tiny key hints, a blinking "PRESS SPACE" in the centre, and no
+visual hierarchy at all. For something you want to hand to someone to show off, that
+was a bad first impression.
+
+The new layout — two large bordered buttons, two icon circles in the corners —
+is immediately more legible and more tappable. NES-style drop shadows on text give
+weight without requiring bitmap fonts. The mini tetromino parade and rainbow title
+are preserved because they're good and people notice them.
+
+The icon approach (`i` for About, `S` for Settings) is pragmatic but not ideal —
+actual glyph icons (ⓘ ⚙) would be better. That requires a font upgrade (SysFont
+"monospace" doesn't guarantee those glyphs). Worth doing when a proper UI font pass
+happens.
+
+### Update checker — done right
+
+Background daemon thread with `urllib.request` — no dependencies, no blocking, no
+crash on network failure. The OSError/Exception split (offline vs error) is correct.
+The release notes text-wrap logic is more complex than ideal but produces a readable
+result. The ENTER key opens the download page; on Android this works via p4a's
+Intent bridge in `webbrowser.open`.
+
+### Build fix — iterative but educational
+
+Six build attempts to reach a working config is a lot. The root cause chain was:
+1. Wrong recipe name (`pygame-ce` → `pygame2`)
+2. Missing pre-installed SDK symlink workaround  
+3. `tee` hiding buildozer exit code
+4. Wrong minapi (21 → 24)
+5. NDK too old for numpy C++ (r25b → r28c)
+6. Latest p4a no longer compiles `pygame2` as a recipe (`pygame2` → `pygame_ce`)
+
+Each failure was diagnosed correctly and fixed cleanly. The key insight for #6:
+the latest p4a master (Python 3.14 target) removed the compiled `pygame2` recipe
+and now expects `pygame_ce`, which publishes official Android ARM64 prebuilt wheels.
+
+### What this version means
+
+The game is now distributable to others without technical instructions. The About
+screen means players can see version info and know if there's an update. The menu
+redesign means the first thing someone sees looks intentional. These are the "show
+this to someone" features, and they're in.
+
+---
+
 ## v1.11.0 Review — Animated Cascade, Coherent Piece Gravity, Android
 
 ### Cascade animation — the right call, executed cleanly

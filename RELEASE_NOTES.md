@@ -2,8 +2,35 @@
 
 ---
 
-## v1.11.0 — Animated Cascade, Coherent Piece Gravity, Android APK Build
+## v1.11.0 — Update Checker, Menu Redesign, Android Build Fix
 *2026-05-28*
+
+### Added
+- **In-game update checker** — background thread polls GitHub releases API on startup;
+  shows update status, version diff, and release notes on the new About screen.
+- **About screen** (`A` at menu / tap ⓘ icon) — displays current version, update
+  status, and release notes from current → latest. `ENTER` opens download page when
+  update available.
+- **Menu redesign** — NES-style shadow text throughout; icon-driven layout with ⓘ
+  (About) and ⚙ (Settings) circle icons. Two large bordered tap-friendly buttons:
+  `START GAME` and `LEADERBOARD`. Replaces cluttered 6-line key hint block.
+- **Controls screen** — accessible from Settings row 5; shows full keyboard reference.
+- **In-game pause gear icon** — small `II` button always visible at top-right during
+  gameplay; tap it to pause on Android (keyboard ESC still works on desktop).
+- **Pause screen buttons** — `CONTINUE` (green) and `QUIT TO MENU` (red) tappable
+  buttons replace the text-only pause overlay.
+- **Mouse / tap routing** — `MOUSEBUTTONDOWN` and `FINGERDOWN` events now checked
+  against button hitboxes in all menu and pause states.
+
+### Fixed
+- **Android APK build**: `pygame2` → `pygame_ce`; latest p4a (Python 3.14 target)
+  no longer compiles pygame2 as a recipe — uses pygame-ce prebuilt Android wheels.
+- `INTERNET` permission added to `buildozer.spec` for the update checker.
+
+---
+
+## v1.11.0 — Animated Cascade, Coherent Piece Gravity, Android APK Build
+*(this entry is superseded by the one above — version number reused)*
 
 ### Added
 - **Android APK build pipeline** — GitHub Actions workflow builds a signed debug

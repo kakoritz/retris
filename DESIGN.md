@@ -383,11 +383,29 @@ A 65-pixel strip at the bottom of the screen renders 6 buttons:
 posted to the pygame event queue. The existing `input_handler.py` processes them
 unchanged. FINGERMOTION handles sliding from one button to another mid-gesture.
 
+### Touch UI — button routing
+
+In addition to the in-game touch strip, all menu and pause screens support tap:
+- `FINGERDOWN` and `MOUSEBUTTONDOWN` events are checked against button hitbox rects
+  defined in `renderer.py` (exported as module-level `pygame.Rect` constants).
+- `_handle_click(lx, ly, gs, app)` in `input_handler.py` maps logical tap position
+  to the correct state transition (start game, open leaderboard, settings, about, etc.).
+- In-game a small `II` icon at the top-right sidebar triggers pause on tap.
+
+### Update checker
+
+`core/updater.py` spawns a daemon thread on startup that queries the GitHub releases
+API (`/repos/kakoritz/retris/releases`) and parses version tags. Status values:
+`checking | up_to_date | available | offline | error`. The About screen (`A` at menu,
+or tap ⓘ) displays version, update status, and formatted release notes.
+`INTERNET` permission is declared in `buildozer.spec` for Android.
+
 ### Build spec highlights
 
 - `android.archs = arm64-v8a` — 64-bit only (all phones since 2019)
 - `android.accept_sdk_license = True` — non-interactive CI builds
-- `p4a.branch = master` — latest python-for-android for pygame-ce recipe support
+- `requirements = python3,pygame_ce,numpy` — `pygame_ce` has official Android ARM64
+  prebuilt wheels on PyPI; latest p4a (Python 3.14 target) no longer compiles `pygame2`
 - `android.meta_data = audio.buffer_size:1024` — reduced mixer buffer for lower
   audio latency on Android
 

@@ -25,6 +25,8 @@ PAUSED         = "paused"
 MUSIC_TEST     = "music_test"
 CASCADING      = "cascading"
 DEMO           = "demo"
+ABOUT          = "about"
+CONTROLS       = "controls"
 
 
 class AppState:
@@ -111,6 +113,9 @@ class AppState:
         self.touch_ox:      int   = 0       # letterbox x offset in display pixels
         self.touch_oy:      int   = 0       # letterbox y offset in display pixels
         self.touch_scale:   float = 1.0     # display→logical pixel scale factor
+
+        # ── update checker ────────────────────────────────────────────────────
+        self.updater = None   # UpdateChecker instance; set in main() after init
 
         # ── debug cheat sequences ─────────────────────────────────────────────
         self._cheat_seq: list = []   # 3-2-1 WOW trigger

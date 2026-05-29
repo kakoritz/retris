@@ -43,17 +43,19 @@ from renderer import (
     draw_level_up_overlay, draw_demo_overlay,
     draw_settings, draw_pause, draw_music_test,
     draw_menu, draw_name_entry, draw_leaderboard,
-    draw_touch_controls,
+    draw_touch_controls, draw_about, draw_controls, draw_ingame_gear,
 )
 from game_constants import (
     LOCK_DELAY, GRAVITY_20G_LEVEL,
     SHAKE_DURATION, SHAKE_INTENSITY, HD_FLASH_DURATION,
+    VERSION,
 )
 from game_state import GameState
 from app_state import AppState
 from game_logic import spawn_next, end_game, do_lock, tick_clearing, tick_cascading
 from input_handler import handle_input, MUSIC_END
 import demo as demo_mod
+from updater import UpdateChecker
 
 # ── states ────────────────────────────────────────────────────────────────────
 MENU        = "menu"
@@ -68,6 +70,8 @@ PAUSED         = "paused"
 MUSIC_TEST     = "music_test"
 CASCADING      = "cascading"
 DEMO           = "demo"
+ABOUT          = "about"
+CONTROLS       = "controls"
 
 
 def _make_display(scale: float) -> pygame.Surface:
@@ -142,7 +146,8 @@ def main():
     gs  = GameState()
     gs.reset()
     app = AppState(display, screen, current_scale)
-    app.best = highscore.best()
+    app.best    = highscore.best()
+    app.updater = UpdateChecker(VERSION)
 
     if _android:
         app.touch_enabled = True
@@ -261,7 +266,7 @@ def main():
 
         # ── draw ──────────────────────────────────────────────────────────────
         if app.state == MENU:
-            draw_menu(app.screen, app.blink_on)
+            draw_menu(app.screen, app.blink_on, updater=app.updater)
 
         elif app.state in (PLAYING, CLEARING, CASCADING, GAME_OVER, GAME_OVER_ANIM,
                            PAUSED, DEMO):
@@ -367,6 +372,8 @@ def main():
             pygame.draw.line(app.screen, BORDER_COLOR,
                              (BOARD_WIDTH, 0), (BOARD_WIDTH, SCREEN_HEIGHT), 1)
 
+            draw_ingame_gear(app.screen)
+
             if app.state == PAUSED:
                 draw_pause(app.screen, app.blink_on)
 
@@ -384,6 +391,12 @@ def main():
 
         elif app.state == MUSIC_TEST:
             draw_music_test(app.screen, app.music_test_tier)
+
+        elif app.state == ABOUT:
+            draw_about(app.screen, app.updater)
+
+        elif app.state == CONTROLS:
+            draw_controls(app.screen)
 
         # Touch D-pad overlay (Android only)
         if app.touch_enabled:

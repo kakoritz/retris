@@ -8,8 +8,9 @@ source.exclude_dirs = tests, .git, .claude, __pycache__, .venv
 
 version         = 1.10.3
 
-# pygame2 = p4a recipe name for pygame 2.x; pygame-ce is desktop-only
-requirements    = python3,pygame2,numpy
+# pygame_ce = p4a recipe name; publishes official Android ARM64 wheels on PyPI
+# imports as `import pygame` — zero code changes needed
+requirements    = python3,pygame_ce,numpy
 
 orientation     = portrait
 fullscreen      = 1
@@ -25,8 +26,7 @@ android.archs   = arm64-v8a
 # Accept SDK licences non-interactively (required for CI)
 android.accept_sdk_license = True
 
-# No special permissions needed (no network, no external storage)
-android.permissions =
+android.permissions = INTERNET
 
 # Smaller mixer buffer for lower Android audio latency
 android.meta_data = audio.buffer_size:1024
