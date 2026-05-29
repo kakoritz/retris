@@ -56,4 +56,22 @@ jobs:
           else
             echo "Using existing PR #$pr"
           fi
-          gh pr merge "$pr" --squash --auto
+          # Wait up to 60 s for the PR's required status check to register,
+          # then enable auto-merge (GitHub merges it once checks pass).
+          for i in $(seq 1 6); do
+            state=$(gh pr view "$pr" --json statusCheckRollup --jq '.statusCheckRollup // [] | map(select(.context=="test")) | .[0].state // "PENDING"')
+            echo "Check state: $state (attempt $i)"
+            if [ "$state" = "SUCCESS" ]; then
+              gh pr merge "$pr" --squash --auto
+              break
+            elif [ "$state" = "FAILURE" ] || [ "$state" = "ERROR" ]; then
+              echo "Required check failed — not merging"
+              exit 1
+            fi
+            sleep 10
+          done
+          # If check hasn't appeared yet, enable auto-merge and let it fire when ready
+          if [ "$state" != "SUCCESS" ]; then
+            echo "Check not yet complete — enabling auto-merge"
+            gh pr merge "$pr" --squash --auto || true
+          fi

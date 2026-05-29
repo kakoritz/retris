@@ -34,6 +34,11 @@ android.meta_data = audio.buffer_size=1024
 
 icon.filename = %(source.dir)s/icon.png
 
+# Pin p4a to the last commit that used Python 3.11 (before 3.14 became the
+# default in e1bd2497). Pygame 2.1.0 includes longintrepr.h which was removed
+# in Python 3.13, so it cannot build against Python 3.14.
+p4a.branch = master
+p4a.commit = 3762c88c
 
 [buildozer]
 log_level = 2
