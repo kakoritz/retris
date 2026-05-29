@@ -64,6 +64,12 @@ class Pygame2Recipe(CompiledComponentsPythonRecipe):
         env['USE_SDL2'] = '1'
         env["PYGAME_CROSS_COMPILE"] = "TRUE"
         env["PYGAME_ANDROID"] = "TRUE"
+        # simd_blitters.h auto-detects __aarch64__ and declares the SSE2/NEON
+        # symbols, but alphablit.c checks PG_ENABLE_ARM_NEON *before* including
+        # that header — so without this flag alphablit.c never compiles the NEON
+        # bridge, leaving the symbols declared but undefined in surface.so.
+        if 'arm64' in arch.arch or 'aarch64' in arch.arch:
+            env['CFLAGS'] = env.get('CFLAGS', '') + ' -DPG_ENABLE_ARM_NEON=1'
         return env
 
 
