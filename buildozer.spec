@@ -8,9 +8,8 @@ source.exclude_dirs = tests, .git, .claude, __pycache__, .venv, custom_recipes
 
 version         = 1.10.3
 
-# Use p4a's compiled 'pygame' recipe (builds from source against Android SDL2).
-# pygame_ce has no p4a recipe — its pip fallback grabs a manylinux wheel that
-# bundles its own SDL2 with a hashed soname the Android linker cannot resolve.
+# Use compiled pygame recipe (builds from source against Android SDL2).
+# custom_recipes/pygame overrides p4a's 2.1.0 with 2.6.1 (Python 3.14 support).
 requirements    = python3,pygame,numpy
 
 orientation     = portrait
@@ -34,11 +33,9 @@ android.meta_data = audio.buffer_size=1024
 
 icon.filename = %(source.dir)s/icon.png
 
-# Pin p4a to the last commit that used Python 3.11 (before 3.14 became the
-# default in e1bd2497). Pygame 2.1.0 includes longintrepr.h which was removed
-# in Python 3.13, so it cannot build against Python 3.14.
-p4a.branch = master
-p4a.commit = 3762c88c
+# Custom recipes directory: overrides p4a's pygame recipe with 2.6.1 which
+# supports Python 3.13/3.14 (longintrepr.h was removed from pygame in 2.5.0).
+p4a.local_recipes = ./custom_recipes
 
 [buildozer]
 log_level = 2

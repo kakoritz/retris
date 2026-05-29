@@ -38,7 +38,7 @@ jobs:
             libltdl-dev
 
       - name: Install buildozer and Cython
-        run: pip install 'buildozer>=1.5' 'cython<3'
+        run: pip install 'buildozer>=1.5' 'cython>=3'
 
       # Cache buildozer's entire home dir: SDK, NDK, p4a build artifacts.
       # Key changes when buildozer.spec changes; prefix fallback restores
