@@ -51,12 +51,14 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
     """Handle a tap/click at logical pixel (lx, ly). Returns True if consumed."""
     from renderer import (MENU_START_RECT, MENU_LB_RECT, MENU_ABOUT_RECT,
                           MENU_SETTINGS_RECT, INGAME_GEAR_RECT,
-                          PAUSE_CONTINUE_RECT, PAUSE_QUIT_RECT)
+                          PAUSE_CONTINUE_RECT, PAUSE_QUIT_RECT,
+                          BACK_RECT, ABOUT_GITHUB_RECT)
     pt = (int(lx), int(ly))
 
     if app.state == MENU:
         app.menu_idle_timer = 0
         if MENU_START_RECT.collidepoint(pt):
+            app.menu_row = 0
             start_new_game(gs, app)
             app.best = highscore.best()
             music.fadeout(400)
@@ -64,6 +66,7 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
             app.state = PLAYING
             return True
         if MENU_LB_RECT.collidepoint(pt):
+            app.menu_row   = 1
             app.lb_scores  = highscore.load()
             app.lb_hi_name = app.lb_hi_score = None
             app.state      = LEADERBOARD
@@ -93,6 +96,37 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
             music_game.stop()
             music.start_menu()
             app.state = MENU
+            return True
+
+    elif app.state == ABOUT:
+        if ABOUT_GITHUB_RECT.collidepoint(pt):
+            import webbrowser
+            webbrowser.open("https://github.com/kakoritz/retris")
+            return True
+        if BACK_RECT.collidepoint(pt):
+            app.state = MENU
+            return True
+
+    elif app.state == LEADERBOARD:
+        if BACK_RECT.collidepoint(pt):
+            music_game.stop()
+            music.start_menu()
+            app.state = MENU
+            return True
+
+    elif app.state == SETTINGS:
+        if BACK_RECT.collidepoint(pt):
+            if app.settings_return_state == PAUSED:
+                app.pre_pause_vol = app.music_vol_pct / 100
+                pygame.mixer.music.set_volume(max(0.0, app.pre_pause_vol * 0.10))
+                app.state = PAUSED
+            else:
+                app.state = MENU
+            return True
+
+    elif app.state == CONTROLS:
+        if BACK_RECT.collidepoint(pt):
+            app.state = SETTINGS
             return True
 
     return False
@@ -167,13 +201,20 @@ def handle_input(gs: GameState, app: AppState, dt: int) -> None:
 
         # ── MENU ─────────────────────────────────────────────────────────────
         if app.state == MENU:
-            app.menu_idle_timer = 0   # any key resets the idle countdown
-            if event.key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP_ENTER):
-                start_new_game(gs, app)
-                app.best = highscore.best()
-                music.fadeout(400)
-                music_game.start_sequence()
-                app.state = PLAYING
+            app.menu_idle_timer = 0
+            if event.key in (pygame.K_UP, pygame.K_DOWN):
+                app.menu_row = (app.menu_row + (1 if event.key == pygame.K_DOWN else -1)) % 2
+            elif event.key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP_ENTER):
+                if app.menu_row == 1:
+                    app.lb_scores  = highscore.load()
+                    app.lb_hi_name = app.lb_hi_score = None
+                    app.state      = LEADERBOARD
+                else:
+                    start_new_game(gs, app)
+                    app.best = highscore.best()
+                    music.fadeout(400)
+                    music_game.start_sequence()
+                    app.state = PLAYING
             elif event.key == pygame.K_s:
                 app.settings_row          = 0
                 app.settings_return_state = MENU

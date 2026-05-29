@@ -97,11 +97,13 @@ def _font(size: int, bold: bool = True) -> pygame.font.Font:
 
 MENU_ABOUT_RECT    = pygame.Rect( 12,  12, 40, 40)
 MENU_SETTINGS_RECT = pygame.Rect(408,  12, 40, 40)
-MENU_START_RECT    = pygame.Rect(110, 268, 240, 54)
-MENU_LB_RECT       = pygame.Rect(110, 338, 240, 54)
+MENU_START_RECT    = pygame.Rect( 60, 178, 340, 44)
+MENU_LB_RECT       = pygame.Rect( 60, 226, 340, 44)
 INGAME_GEAR_RECT   = pygame.Rect(432,   4, 26, 26)
 PAUSE_CONTINUE_RECT = pygame.Rect(110, 308, 240, 50)
 PAUSE_QUIT_RECT     = pygame.Rect(110, 372, 240, 50)
+BACK_RECT          = pygame.Rect( 10, 556, 120, 34)
+ABOUT_GITHUB_RECT  = pygame.Rect( 60, 440, 340, 30)
 
 
 # ── shared UI helpers ─────────────────────────────────────────────────────────
@@ -148,6 +150,73 @@ def _draw_icon_circle(surf: pygame.Surface, letter: str,
     t = f.render(letter, True, color)
     surf.blit(t, (rect.centerx - t.get_width()  // 2,
                   rect.centery - t.get_height() // 2))
+
+
+def _draw_back_btn(surf: pygame.Surface) -> None:
+    _draw_btn(surf, "< BACK", BACK_RECT, BORDER_COLOR)
+
+
+# ── RETRIS pixel-block logo ───────────────────────────────────────────────────
+
+# 5-col × 6-row bitmaps; 1 = filled block
+_LOGO_GLYPHS = {
+    'R': [[1,1,1,1,0],[1,0,0,0,1],[1,1,1,1,0],[1,0,1,0,0],[1,0,0,1,0],[1,0,0,0,1]],
+    'E': [[1,1,1,1,1],[1,0,0,0,0],[1,1,1,1,0],[1,0,0,0,0],[1,0,0,0,0],[1,1,1,1,1]],
+    'T': [[1,1,1,1,1],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0]],
+    'I': [[1,1,1,1,1],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[1,1,1,1,1]],
+    'S': [[0,1,1,1,1],[1,0,0,0,0],[0,1,1,1,0],[0,0,0,0,1],[0,0,0,0,1],[1,1,1,1,0]],
+}
+# color_ids per letter: R=purple(3)  E=cyan(1)  T=yellow(2)  R=green(4)  I=blue(6)  S=red(5)
+_LOGO_COLORS = [3, 1, 2, 4, 6, 5]
+_LOGO_CELL   = 9   # px per block in the logo
+
+
+def draw_retris_logo(surf: pygame.Surface, top_y: int = 8) -> None:
+    letters = list("RETRIS")
+    letter_w = 5 * _LOGO_CELL
+    gap      = 2 * _LOGO_CELL
+    total_w  = len(letters) * letter_w + (len(letters) - 1) * gap
+    x0       = (SCREEN_WIDTH - total_w) // 2
+
+    for li, ch in enumerate(letters):
+        glyph    = _LOGO_GLYPHS[ch]
+        color_id = _LOGO_COLORS[li]
+        lx       = x0 + li * (letter_w + gap)
+        for gy, row in enumerate(glyph):
+            for gx, val in enumerate(row):
+                if val:
+                    surf.blit(get_block(color_id, _LOGO_CELL),
+                              (lx + gx * _LOGO_CELL, top_y + gy * _LOGO_CELL))
+
+
+# ── animated tetromino background ─────────────────────────────────────────────
+
+def _draw_animated_bg(surf: pygame.Surface) -> None:
+    """Faint tiled tetromino shapes that cycle theme color every 15 s."""
+    t      = pygame.time.get_ticks()
+    idx    = (t // 15000) % len(LEVEL_THEMES)
+    nxt    = (idx + 1)   % len(LEVEL_THEMES)
+    frac   = (t % 15000) / 15000.0
+    gc     = LEVEL_THEMES[idx][1]
+    gc_n   = LEVEL_THEMES[nxt][1]
+    tint   = tuple(int(gc[i] * (1 - frac) + gc_n[i] * frac) for i in range(3))
+
+    cell   = 7
+    ov     = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+    rng    = random.Random(idx)
+
+    piece_list = list(SHAPES.items())
+    for pt, shape in piece_list:
+        for _ in range(4):
+            px = rng.randint(-1, SCREEN_WIDTH  // cell)
+            py = rng.randint(-1, SCREEN_HEIGHT // cell)
+            for ry, row in enumerate(shape):
+                for rx, v in enumerate(row):
+                    if v:
+                        pygame.draw.rect(ov, (*tint, 28),
+                            ((px + rx) * cell, (py + ry) * cell,
+                             cell - 1, cell - 1))
+    surf.blit(ov, (0, 0))
 
 
 # ── board / piece drawing ─────────────────────────────────────────────────────
@@ -696,11 +765,11 @@ def draw_settings(surf: pygame.Surface, music_vol: int, sfx_vol: int,
 
     pygame.draw.line(surf, BORDER_COLOR, (40, 492), (SCREEN_WIDTH - 40, 492), 1)
     for i, hint in enumerate(["UP / DOWN  :  select row",
-                               "LEFT / RIGHT  :  adjust",
-                               "ENTER / ESC  :  back to menu"]):
+                               "LEFT / RIGHT  :  adjust"]):
         t = _font(13, bold=False).render(hint, True, BORDER_COLOR)
         surf.blit(t, (cx - t.get_width() // 2, 504 + i * 18))
 
+    _draw_back_btn(surf)
     pygame.draw.rect(surf, BORDER_COLOR, (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), 2)
 
 
@@ -833,9 +902,7 @@ def draw_controls(surf: pygame.Surface) -> None:
                      (30, y0 + len(_CONTROLS_TABLE) * row_h + 4),
                      (SCREEN_WIDTH - 30, y0 + len(_CONTROLS_TABLE) * row_h + 4), 1)
 
-    _draw_shadow_text(surf, "ESC  —  back", 12, cx,
-                      y0 + len(_CONTROLS_TABLE) * row_h + 14,
-                      BORDER_COLOR, bold=False, center_x=True)
+    _draw_back_btn(surf)
     pygame.draw.rect(surf, BORDER_COLOR, (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), 2)
 
 
@@ -853,52 +920,38 @@ def _draw_mini_piece(surf, shape, cx, cy, cell):
                           (ox + ci * (cell + 1), oy + ri * (cell + 1)))
 
 
-def draw_menu(surf: pygame.Surface, blink_on: bool, updater=None) -> None:
+def draw_menu(surf: pygame.Surface, blink_on: bool, updater=None,
+              menu_row: int = 0) -> None:
     surf.fill(BG_COLOR)
     cx = SCREEN_WIDTH // 2
 
-    # ── Rainbow title with drop shadows ──────────────────────────────────────
-    f56 = _font(56)
-    letters = list("RETRIS")
-    total_w = sum(f56.size(l)[0] for l in letters)
-    x = cx - total_w // 2
-    for letter, color in zip(letters, _TITLE_COLORS):
-        sh = f56.render(letter, True, (15, 15, 15))
-        t  = f56.render(letter, True, color)
-        surf.blit(sh, (x + 2, 50))
-        surf.blit(t,  (x,     48))
-        x += t.get_width()
+    # ── RETRIS pixel-block logo ───────────────────────────────────────────────
+    draw_retris_logo(surf, top_y=10)
 
-    t = _font(12, bold=False).render("by kakoritz", True, BORDER_COLOR)
-    surf.blit(t, (cx - t.get_width() // 2, 116))
-    pygame.draw.line(surf, BORDER_COLOR, (cx - 160, 132), (cx + 160, 132), 1)
+    # ── "by kakoritz" ─────────────────────────────────────────────────────────
+    t = _font(11, bold=False).render("by kakoritz", True, BORDER_COLOR)
+    surf.blit(t, (cx - t.get_width() // 2, 76))
 
     # ── Mini tetromino parade ─────────────────────────────────────────────────
     slot_w = SCREEN_WIDTH // len(SHAPES)
     for i, pt in enumerate(SHAPES):
-        _draw_mini_piece(surf, SHAPES[pt], slot_w * i + slot_w // 2, 185, 16)
+        _draw_mini_piece(surf, SHAPES[pt], slot_w * i + slot_w // 2, 130, 16)
 
-    pygame.draw.line(surf, BORDER_COLOR, (cx - 160, 208), (cx + 160, 208), 1)
-
-    # ── ⓘ  About icon (top-left) ──────────────────────────────────────────────
-    _draw_icon_circle(surf, "i", MENU_ABOUT_RECT, (80, 200, 255))
-
-    # ── ⚙  Settings icon (top-right) ─────────────────────────────────────────
+    # ── ⓘ / ⚙ icon buttons ────────────────────────────────────────────────────
+    _draw_icon_circle(surf, "i", MENU_ABOUT_RECT,    (80, 200, 255))
     _draw_icon_circle(surf, "S", MENU_SETTINGS_RECT, (180, 180, 180))
 
-    # ── Main action buttons ───────────────────────────────────────────────────
-    _draw_btn(surf, "START  GAME",  MENU_START_RECT, (255, 220, 0))
-    _draw_btn(surf, "LEADERBOARD",  MENU_LB_RECT,    (100, 180, 255))
+    # ── NES-style selection cursor ────────────────────────────────────────────
+    items = ["START  GAME", "LEADERBOARD"]
+    item_y = [192, 240]
 
-    # Blink "SPACE" hint below buttons
-    if blink_on:
-        _draw_shadow_text(surf, "SPACE  or  tap  to  start", 11,
-                          cx, 404, (160, 160, 160), bold=False, center_x=True)
-
-    # Small key-hint row for secondary actions
-    hint = "D  demo    T  music    M  mute"
-    t = _font(11, bold=False).render(hint, True, BORDER_COLOR)
-    surf.blit(t, (cx - t.get_width() // 2, 420))
+    for i, (label, y) in enumerate(zip(items, item_y)):
+        selected = (i == menu_row)
+        color    = WHITE if selected else (90, 90, 90)
+        _draw_shadow_text(surf, label, 22, cx, y, color, center_x=True)
+        if selected and blink_on:
+            ax = cx - _font(22).size(label)[0] // 2 - 28
+            _draw_shadow_text(surf, ">", 22, ax, y, (255, 220, 0))
 
     # ── Version + update badge ────────────────────────────────────────────────
     from game_constants import VERSION
@@ -917,20 +970,17 @@ def draw_about(surf: pygame.Surface, updater) -> None:
     surf.fill(BG_COLOR)
     cx = SCREEN_WIDTH // 2
 
-    t = _font(30).render("RETRIS", True, (0, 220, 220))
-    surf.blit(t, (cx - t.get_width() // 2, 28))
+    draw_retris_logo(surf, top_y=10)
     t = _font(11, bold=False).render("by kakoritz", True, BORDER_COLOR)
-    surf.blit(t, (cx - t.get_width() // 2, 64))
-
-    pygame.draw.line(surf, BORDER_COLOR, (30, 84), (SCREEN_WIDTH - 30, 84), 1)
+    surf.blit(t, (cx - t.get_width() // 2, 76))
+    pygame.draw.line(surf, BORDER_COLOR, (30, 92), (SCREEN_WIDTH - 30, 92), 1)
 
     from game_constants import VERSION
-    t = _font(14).render(f"Version  v{VERSION}", True, WHITE)
-    surf.blit(t, (cx - t.get_width() // 2, 96))
+    _draw_shadow_text(surf, f"Version  v{VERSION}", 14, cx, 100,
+                      WHITE, center_x=True)
+    pygame.draw.line(surf, BORDER_COLOR, (30, 124), (SCREEN_WIDTH - 30, 124), 1)
 
-    pygame.draw.line(surf, BORDER_COLOR, (30, 118), (SCREEN_WIDTH - 30, 118), 1)
-
-    y = 130
+    y = 134
     status = updater.status if updater else "checking"
 
     if status == "checking":
@@ -938,8 +988,7 @@ def draw_about(surf: pygame.Surface, updater) -> None:
         surf.blit(t, (cx - t.get_width() // 2, y))
 
     elif status == "up_to_date":
-        t = _font(14).render("Up to date", True, (60, 200, 80))
-        surf.blit(t, (cx - t.get_width() // 2, y))
+        _draw_shadow_text(surf, "Up to date", 14, cx, y, (60, 200, 80), center_x=True)
 
     elif status in ("offline", "error"):
         msg = "No internet connection" if status == "offline" else "Update check failed"
@@ -947,47 +996,48 @@ def draw_about(surf: pygame.Surface, updater) -> None:
         surf.blit(t, (cx - t.get_width() // 2, y))
 
     elif status == "available":
-        t = _font(14).render(f"v{updater.latest_version}  available!", True, (255, 220, 0))
-        surf.blit(t, (cx - t.get_width() // 2, y))
+        _draw_shadow_text(surf, f"v{updater.latest_version}  available!", 14,
+                          cx, y, (255, 220, 0), center_x=True)
         y += 26
 
-        # Release notes — newest release first, max ~12 body lines total
         lines_drawn = 0
         for ver, body in updater.release_notes:
-            if lines_drawn >= 12:
+            if lines_drawn >= 10:
                 break
             t = _font(11).render(f"— v{ver} —", True, (80, 160, 220))
             surf.blit(t, (cx - t.get_width() // 2, y))
             y += 15; lines_drawn += 1
             for raw in body.splitlines():
                 raw = raw.strip()
-                if not raw:
-                    continue
-                if lines_drawn >= 12:
-                    t = _font(10, bold=False).render("  ...", True, BORDER_COLOR)
-                    surf.blit(t, (32, y)); y += 13
+                if not raw or lines_drawn >= 10:
                     break
-                # hard-wrap at 52 chars
                 while len(raw) > 52:
                     t = _font(10, bold=False).render(raw[:52], True, (190, 190, 190))
                     surf.blit(t, (32, y)); y += 13; lines_drawn += 1
                     raw = "  " + raw[52:]
-                    if lines_drawn >= 12:
+                    if lines_drawn >= 10:
                         break
-                if lines_drawn >= 12:
-                    break
-                t = _font(10, bold=False).render(raw, True, (190, 190, 190))
-                surf.blit(t, (32, y)); y += 13; lines_drawn += 1
+                if lines_drawn < 10:
+                    t = _font(10, bold=False).render(raw, True, (190, 190, 190))
+                    surf.blit(t, (32, y)); y += 13; lines_drawn += 1
 
-        # Download hint
-        y += 6
-        pygame.draw.line(surf, BORDER_COLOR, (30, y), (SCREEN_WIDTH - 30, y), 1)
-        y += 10
-        t = _font(12).render("ENTER  —  open download page", True, (0, 200, 160))
-        surf.blit(t, (cx - t.get_width() // 2, y))
+        pygame.draw.line(surf, BORDER_COLOR, (30, min(y+4, 420)), (SCREEN_WIDTH-30, min(y+4, 420)), 1)
+        _draw_shadow_text(surf, "ENTER  —  open download page", 12,
+                          cx, min(y+12, 426), (0, 200, 160), center_x=True)
 
-    t = _font(11, bold=False).render("ESC  —  back", True, BORDER_COLOR)
-    surf.blit(t, (cx - t.get_width() // 2, SCREEN_HEIGHT - 24))
+    # ── GitHub link ───────────────────────────────────────────────────────────
+    pygame.draw.line(surf, BORDER_COLOR, (30, 454), (SCREEN_WIDTH - 30, 454), 1)
+    _draw_shadow_text(surf, "github.com/kakoritz/retris", 12,
+                      cx, 462, (80, 180, 255), center_x=True)
+    pygame.draw.rect(surf, (80, 180, 255),
+                     ABOUT_GITHUB_RECT, 1)
+
+    # ── Demo tip ──────────────────────────────────────────────────────────────
+    t = _font(10, bold=False).render("tip: press D at menu for a secret demo mode",
+                                     True, BORDER_COLOR)
+    surf.blit(t, (cx - t.get_width() // 2, 498))
+
+    _draw_back_btn(surf)
     pygame.draw.rect(surf, BORDER_COLOR, (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), 2)
 
 
@@ -1040,32 +1090,79 @@ def draw_name_entry(surf: pygame.Surface, initials: list, cursor: int,
 
 # ── leaderboard ───────────────────────────────────────────────────────────────
 
+_LB_RANK_COLORS = [
+    (255, 215,   0),   # 1 — gold
+    (192, 192, 192),   # 2 — silver
+    (205, 127,  50),   # 3 — bronze
+]
+
 def draw_leaderboard(surf: pygame.Surface, scores: list,
                      hi_name: str | None, hi_score: int | None) -> None:
     surf.fill(BG_COLOR)
+    _draw_animated_bg(surf)
     cx = SCREEN_WIDTH // 2
 
-    t = _font(26).render("HIGH  SCORES", True, YELLOW)
-    surf.blit(t, (cx - t.get_width() // 2, 28))
+    # ── Title ─────────────────────────────────────────────────────────────────
+    _draw_shadow_text(surf, "HIGH  SCORES", 26, cx, 12, YELLOW, center_x=True)
 
-    pygame.draw.line(surf, BORDER_COLOR, (30, 64), (SCREEN_WIDTH - 30, 64), 1)
+    pygame.draw.line(surf, BORDER_COLOR, (12, 50), (SCREEN_WIDTH - 12, 50), 1)
 
-    t = _font(13).render("  #  NAME    SCORE   LINES  LVL", True, BORDER_COLOR)
-    surf.blit(t, (30, 72))
-    pygame.draw.line(surf, BORDER_COLOR, (30, 88), (SCREEN_WIDTH - 30, 88), 1)
+    # ── Column header ─────────────────────────────────────────────────────────
+    X_RANK  = 14
+    X_NAME  = 50
+    X_SCORE = 110
+    X_LINES = 314
+    X_LVL   = 390
+    Y_HDR   = 56
+    ROW_H   = 44
 
+    for label, x in [("#", X_RANK), ("NAME", X_NAME), ("SCORE", X_SCORE),
+                     ("LINES", X_LINES), ("LVL", X_LVL)]:
+        t = _font(11, bold=False).render(label, True, BORDER_COLOR)
+        surf.blit(t, (x, Y_HDR))
+
+    pygame.draw.line(surf, BORDER_COLOR, (12, Y_HDR + 18), (SCREEN_WIDTH - 12, Y_HDR + 18), 1)
+
+    # ── Entries ───────────────────────────────────────────────────────────────
     for i, e in enumerate(scores):
-        is_new = (e["name"] == hi_name and e["score"] == hi_score)
-        row = (f"  {i+1:<2}  {e['name']:<4}  "
-               f"{str(e['score']).zfill(7)}  "
-               f"{e['lines']:>5}  {e['level']:>3}")
-        t = _font(15).render(row, True, YELLOW if is_new else WHITE)
-        surf.blit(t, (30, 98 + i * 26))
+        y       = Y_HDR + 22 + i * ROW_H
+        is_new  = (e["name"] == hi_name and e["score"] == hi_score)
+        rank_c  = _LB_RANK_COLORS[i] if i < 3 else (WHITE if is_new else (200, 200, 200))
+
+        # Row tint for new entry
+        if is_new:
+            hl = pygame.Surface((SCREEN_WIDTH - 24, ROW_H - 2), pygame.SRCALPHA)
+            hl.fill((255, 220, 0, 28))
+            surf.blit(hl, (12, y))
+
+        # Rank
+        _draw_shadow_text(surf, f"{i+1}", 14, X_RANK, y + 2, rank_c)
+
+        # Name
+        _draw_shadow_text(surf, e["name"], 16, X_NAME, y, rank_c)
+
+        # Score — odometer style (static)
+        digits = [int(d) for d in str(min(e["score"], 99999999)).zfill(8)]
+        draw_odometer(surf, digits, [0]*8, [0.0]*8, X_SCORE, y + 2)
+
+        # Lines
+        _draw_shadow_text(surf, str(e["lines"]), 14, X_LINES, y + 2,
+                          (180, 220, 255) if is_new else (160, 160, 160))
+
+        # Level
+        _draw_shadow_text(surf, str(e["level"]), 14, X_LVL, y + 2,
+                          (100, 255, 100) if is_new else (140, 140, 140))
+
+        # Thin separator
+        if i < len(scores) - 1:
+            pygame.draw.line(surf, (40, 40, 40),
+                             (12, y + ROW_H - 2), (SCREEN_WIDTH - 12, y + ROW_H - 2), 1)
 
     pygame.draw.line(surf, BORDER_COLOR,
-                     (30, SCREEN_HEIGHT - 56), (SCREEN_WIDTH - 30, SCREEN_HEIGHT - 56), 1)
-    for i, hint in enumerate(["ENTER / ESC : menu", "R : play again"]):
-        t = _font(13, bold=False).render(hint, True, BORDER_COLOR)
-        surf.blit(t, (cx - t.get_width() // 2, SCREEN_HEIGHT - 46 + i * 18))
+                     (12, SCREEN_HEIGHT - 48), (SCREEN_WIDTH - 12, SCREEN_HEIGHT - 48), 1)
+
+    _draw_back_btn(surf)
+    t = _font(12, bold=False).render("R  —  play again", True, BORDER_COLOR)
+    surf.blit(t, (cx - t.get_width() // 2, SCREEN_HEIGHT - 38))
 
     pygame.draw.rect(surf, BORDER_COLOR, (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), 2)

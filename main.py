@@ -266,7 +266,8 @@ def main():
 
         # ── draw ──────────────────────────────────────────────────────────────
         if app.state == MENU:
-            draw_menu(app.screen, app.blink_on, updater=app.updater)
+            draw_menu(app.screen, app.blink_on, updater=app.updater,
+                      menu_row=app.menu_row)
 
         elif app.state in (PLAYING, CLEARING, CASCADING, GAME_OVER, GAME_OVER_ANIM,
                            PAUSED, DEMO):
