@@ -171,6 +171,7 @@ def main():
             draw_mobile_side_margins,
             draw_mobile_game_over, draw_mobile_pause,
             draw_mobile_leaderboard,
+            draw_mobile_menu, draw_mobile_settings, draw_mobile_controls,
         )
         _mobile = True
 
@@ -347,8 +348,12 @@ def main():
 
         # ── draw ──────────────────────────────────────────────────────────────
         if app.state == MENU:
-            draw_menu(app.screen, app.blink_on, updater=app.updater,
-                      menu_row=app.menu_row)
+            if _mobile:
+                draw_mobile_menu(app.screen, app.blink_on,
+                                 updater=app.updater, menu_row=app.menu_row)
+            else:
+                draw_menu(app.screen, app.blink_on, updater=app.updater,
+                          menu_row=app.menu_row)
 
         elif app.state in (PLAYING, CLEARING, CASCADING, GAME_OVER, GAME_OVER_ANIM,
                            PAUSED, DEMO):
@@ -436,19 +441,18 @@ def main():
                                  (M_BOARD_X - 1, M_BOARD_Y - 1,
                                   M_BOARD_W + 2, M_BOARD_H + 2), 1)
 
-                # Stats strip (top)
-                draw_mobile_stats(
-                    app.screen, gs.score, gs.lines, gs.level,
-                    in_game=app.state in (PLAYING, CLEARING, CASCADING, PAUSED),
-                )
-
-                # Info strip (below board: next pieces + hold)
-                draw_mobile_info_strip(
-                    app.screen, gs.piece_queue,
-                    hold_piece=gs.hold_piece, hold_used=gs.hold_used,
-                    hold_has_piece=gs.hold_piece is not None,
-                    palette_phase=level_theme,
-                )
+                # Stats + info strips — hidden during demo (full-screen board)
+                if app.state != DEMO:
+                    draw_mobile_stats(
+                        app.screen, gs.score, gs.lines, gs.level,
+                        in_game=app.state in (PLAYING, CLEARING, CASCADING, PAUSED),
+                    )
+                    draw_mobile_info_strip(
+                        app.screen, gs.piece_queue,
+                        hold_piece=gs.hold_piece, hold_used=gs.hold_used,
+                        hold_has_piece=gs.hold_piece is not None,
+                        palette_phase=level_theme,
+                    )
 
                 if app.state == PAUSED:
                     draw_mobile_pause(app.screen, app.blink_on, app.pause_row)
@@ -562,9 +566,14 @@ def main():
                 draw_leaderboard(app.screen, app.lb_scores, app.lb_hi_name, app.lb_hi_score)
 
         elif app.state == SETTINGS:
-            draw_settings(app.screen, app.music_vol_pct, app.sfx_vol_pct,
-                          app.settings_row, music.is_muted(), app.current_scale,
-                          app.ghost_opacity_pct, app.das_preset)
+            if _mobile:
+                draw_mobile_settings(app.screen, app.music_vol_pct, app.sfx_vol_pct,
+                                     app.ghost_opacity_pct, app.das_preset,
+                                     app.settings_row)
+            else:
+                draw_settings(app.screen, app.music_vol_pct, app.sfx_vol_pct,
+                              app.settings_row, music.is_muted(), app.current_scale,
+                              app.ghost_opacity_pct, app.das_preset)
 
         elif app.state == MUSIC_TEST:
             draw_music_test(app.screen, app.music_test_tier)
@@ -573,7 +582,10 @@ def main():
             draw_about(app.screen, app.updater)
 
         elif app.state == CONTROLS:
-            draw_controls(app.screen)
+            if _mobile:
+                draw_mobile_controls(app.screen)
+            else:
+                draw_controls(app.screen)
 
         # Touch controls (Android only)
         if app.touch_enabled:

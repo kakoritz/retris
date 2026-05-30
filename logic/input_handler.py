@@ -142,6 +142,7 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
             return True
 
     elif app.state == SETTINGS:
+        # Desktop back button
         if BACK_RECT.collidepoint(pt):
             if app.settings_return_state == PAUSED:
                 app.pre_pause_vol = app.music_vol_pct / 100
@@ -150,6 +151,39 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
             else:
                 app.state = MENU
             return True
+        # Mobile: tap on sliders / DAS buttons / controls link
+        if getattr(app, 'touch_enabled', False):
+            try:
+                from renderer_mobile import _MS_SLIDERS, _MS_DAS_BTNS, _MS_CONTROLS_BTN
+                import config as _cfg
+                # Slider taps
+                for key, rect in _MS_SLIDERS.items():
+                    if rect.collidepoint(pt):
+                        pct = max(0, min(100, int((lx - rect.x) / rect.width * 100)))
+                        if key == 'music':
+                            app.music_vol_pct = pct
+                            music_game.set_volume(pct / 100)
+                        elif key == 'sfx':
+                            app.sfx_vol_pct = pct
+                        elif key == 'ghost':
+                            app.ghost_opacity_pct = pct
+                            _cfg.set_ghost_opacity(pct)
+                        return True
+                # DAS buttons
+                for box, preset_key in _MS_DAS_BTNS:
+                    if box.collidepoint(pt):
+                        app.das_preset = preset_key
+                        d, r = _cfg.DAS_SETTINGS[preset_key]
+                        app.das_delay  = d
+                        app.das_repeat = r
+                        _cfg.set_das_preset(preset_key)
+                        return True
+                # CONTROLS link
+                if _MS_CONTROLS_BTN.collidepoint(pt):
+                    app.state = CONTROLS
+                    return True
+            except (ImportError, Exception):
+                pass
 
     elif app.state == CONTROLS:
         if BACK_RECT.collidepoint(pt):
