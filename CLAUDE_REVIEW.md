@@ -9,6 +9,52 @@ part development commentary — what changed, what it means, and where the game 
 
 ---
 
+## v1.12.0 Review — Android Touch Controls and Full-Screen Layout
+
+### The controls redesign — the right answer, harder to find
+
+The original touch strip was a dead end: 65 px overlaid on the bottom of the game board,
+small labels, icon glyphs that meant nothing without prior knowledge. On a 6-inch phone
+it was a game you had to squint at.
+
+The new design solves this correctly. Moving controls below the play area (width-fill
+scaling + canvas extension) means the game board is fully unobstructed. No overlap,
+no guess about whether a tap lands in-game or on a button. The zone is genuinely separate
+and the player always knows which space is which.
+
+The NES pixel-block icons are the right visual language for this project. Everything
+else in RETRIS is drawn with the block renderer — logo, score odometer, GAME OVER text.
+Making the controls match is visually coherent in a way that HTML-style round buttons
+or emoji glyphs would never be. They look like part of the same thing.
+
+### The animated pause button — actually inspired
+
+A T-tetromino that slowly cycles through all 7 piece colours is the one element on the
+screen that moves at rest. It draws the eye without being distracting. It communicates
+"this is interactive" without needing a label. And the colour cycle is the right speed —
+slow enough to feel ambient, fast enough to be clearly intentional. This is the kind of
+small UI detail that separates a toy from something crafted.
+
+The functional choice (far-right, K_ESCAPE) is also correct. Pause is the least-needed
+control mid-game, so it belongs at the edge of the strip. The animation makes it findable
+even without that prior knowledge.
+
+### Game-over tap flow — the obvious fix, surprisingly late
+
+The game was locking up on Android because GAME_OVER_ANIM and GAME_OVER only handled
+keyboard events. On a touch device with no keyboard, this left users stranded. The fix
+(route FINGERDOWN through `_handle_click`, handle both states) is six lines of code.
+The real lesson is that any state that waits for input must handle *all* input surfaces
+from day one. A state that only handles keys is incomplete on a touch device.
+
+### What's still not verified on-device
+
+- DAS auto-repeat feel (LEFT/RIGHT hold) — works in code, never tested with actual thumbs
+- Initials entry (ENTER_NAME state) — no touch path to this state has been exercised on hardware
+- Portrait vs. landscape orientation handling — only portrait tested
+
+---
+
 ## v1.11.3 Review — Menu Overhaul and Android Fix
 
 ### Menu layout — much better spatial hierarchy

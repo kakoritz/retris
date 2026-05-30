@@ -2,6 +2,30 @@
 
 ---
 
+## v1.12.0 — Android Touch Controls & Full-Screen Layout
+*2026-05-29*
+
+### Added
+- **Full-screen Android layout** — game fills the phone's full width; a dedicated touch
+  control zone extends below the play area so controls never overlap the board.
+- **NES block-art touch controls** — 7 buttons drawn with the same pixel-block renderer
+  as the RETRIS logo: LEFT `<`, DOWN `V`, DROP (return-key shape), HOLD, ROTATE `↻`,
+  RIGHT `>`, and an animated PAUSE button.
+- **Animated T-piece pause button** — far-right of the touch zone; a T-tetromino slowly
+  cycles through all 7 piece colours (one colour per 1.5 s). Tapping it pauses the game
+  or opens the menu.
+- **Touch game-over flow** — tapping anywhere during the GAME OVER animation skips it;
+  tapping the GAME OVER stats screen returns to the menu. Previously locked up on Android.
+
+### Changed
+- **Touch zone below game board** — controls now live at `y >= SCREEN_HEIGHT` in logical
+  space; the canvas is extended (`SCREEN_HEIGHT + touch_zone_h`) and scaled to the full
+  display, replacing the old 65 px overlay that covered the bottom board rows.
+- **Pause accessible via touch** — K_ESCAPE now has a dedicated button in the touch zone;
+  the small in-game gear icon is no longer the only way to pause on Android.
+
+---
+
 ## v1.11.3 — Menu Overhaul & Android APK Fix
 *2026-05-29*
 

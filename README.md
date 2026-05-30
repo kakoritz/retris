@@ -93,6 +93,8 @@ persisted across sessions in `config.json`. Ghost-piece opacity is also persiste
 - Pause overlay — music drops to 10 %, any key resumes, Q exits to menu
 - Music Preview screen — audition all 10 tiers live from the menu
 - Settings screen — music volume, SFX volume, display scale, ghost opacity
+- **Android full-screen layout** — game fills the phone's full width; touch controls live in a dedicated zone below the board so nothing overlaps gameplay
+- **NES block-art touch controls** — 7 finger-size buttons (LEFT, DOWN, DROP, HOLD, ROTATE, RIGHT, PAUSE) drawn with the same pixel-block renderer as the RETRIS logo; animated T-piece pause button cycles through all 7 piece colours
 
 ---
 
@@ -151,6 +153,24 @@ Every merge to `main` automatically builds an Android APK via GitHub Actions.
 3. Open the file on your Android device
 4. Enable *Install from unknown sources* if prompted (Settings → Security)
 
+**Touch controls (Android):**
+
+The game detects Android at startup and switches to a full-width layout with a touch
+zone below the game board. Seven tap targets span the zone:
+
+| Button | Shape | Action |
+|--------|-------|--------|
+| LEFT `<` | NES block arrow | Move left (DAS auto-repeat while held) |
+| DOWN `V` | NES block arrow | Soft drop |
+| DROP | Return-key icon | Hard drop (instant lock) |
+| HOLD | `H`-block | Swap hold piece |
+| ROTATE `↻` | Curved arrow | Rotate clockwise |
+| RIGHT `>` | NES block arrow | Move right (DAS auto-repeat while held) |
+| T-PIECE | Animated tetromino | Pause / open menu |
+
+The pause button is an animated T-tetromino that slowly cycles through all 7 piece
+colours — tap it at any time during gameplay to pause.
+
 ---
 
 ## Controls
@@ -191,7 +211,7 @@ Every merge to `main` automatically builds an Android APK via GitHub Actions.
 | `↑` / `↓` | Navigate pause menu cursor |
 | `Enter` or `Space` | Confirm selection |
 | `Esc` | Resume immediately |
-| Tap **⚙/II** icon (bottom-right, Android) | Open pause menu |
+| Tap **T-piece** button (touch zone, Android) | Open pause menu |
 
 ### Music Preview
 | Key | Action |

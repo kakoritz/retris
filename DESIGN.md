@@ -360,37 +360,49 @@ publishes it to the `apk-latest` GitHub Release. Users download and sideload.
 ### Runtime detection
 
 The presence of `ANDROID_ARGUMENT` in the environment signals an Android runtime:
-- Display: `pygame.FULLSCREEN` at device resolution; logical 460×600 content is
-  letterboxed and scaled with black bars. Touch offsets (`touch_ox`, `touch_oy`) map
-  finger coordinates to logical space.
+- Display: `pygame.FULLSCREEN` at device resolution. In portrait mode the game is
+  **width-fill**: `scale = device_width / SCREEN_WIDTH`. The remaining vertical space
+  below the 460×600 game area becomes the **touch control zone** — no black bars,
+  no letterboxing, no controls overlapping the board.
+- `touch_zone_h = int(dh / scale) - SCREEN_HEIGHT` — the logical height of the zone.
+  The canvas surface is created as `(SCREEN_WIDTH, SCREEN_HEIGHT + touch_zone_h)` and
+  scaled to the full display each frame via `smoothscale`.
 - Storage: `ANDROID_PRIVATE` overrides the config/highscore paths so saves persist
   in the app's private storage directory.
 
-### Touch controls
+### Touch controls — NES block-art design
 
-A 65-pixel strip at the bottom of the screen renders 6 buttons:
+Seven buttons span the touch zone below the game board, each rendered with the same
+pixel-block renderer used for the RETRIS logo (`get_block(color_id, cell_size)`).
+Shapes are defined as 2-D grids of 0/1 cells that form recognisable icons:
 
-| Button | Key | Label |
-|--------|-----|-------|
-| Left | ← | ◄ |
-| Rotate CCW | Z | ↺ |
-| Soft-drop | ↓ | ▼ |
-| Hard-drop | Space | ▲ |
-| Rotate CW | ↑ | ↻ |
-| Hold | C | □ |
+| Position | Button | Key | Icon |
+|----------|--------|-----|------|
+| 1 | LEFT | ← | Block `<` arrow |
+| 2 | DOWN | ↓ | Block `V` arrow |
+| 3 | DROP | Space | Return-key icon |
+| 4 | HOLD | C | Block H-shape |
+| 5 | ROTATE | ↑ | Curved block arrow |
+| 6 | RIGHT | → | Block `>` arrow |
+| 7 | PAUSE | Esc | Animated T-tetromino |
 
-`FINGERDOWN/UP/MOTION` events are converted to `KEYDOWN/KEYUP` synthetic events and
-posted to the pygame event queue. The existing `input_handler.py` processes them
-unchanged. FINGERMOTION handles sliding from one button to another mid-gesture.
+The **PAUSE** button is a live T-piece that cycles through all 7 piece colours at one
+colour per 1.5 s (`pygame.time.get_ticks() // 1500 % 7 + 1`). It is decorative enough
+to be noticed but not distracting during play.
+
+`FINGERDOWN/UP/MOTION` events are converted to `KEYDOWN/KEYUP` synthetic events posted
+to the pygame event queue. The existing `input_handler.py` is unchanged — touch and
+keyboard share the same handler. FINGERMOTION handles sliding between buttons mid-gesture.
 
 ### Touch UI — button routing
 
-In addition to the in-game touch strip, all menu and pause screens support tap:
+All menu and pause screens support tap (Android and desktop):
 - `FINGERDOWN` and `MOUSEBUTTONDOWN` events are checked against button hitbox rects
   defined in `renderer.py` (exported as module-level `pygame.Rect` constants).
 - `_handle_click(lx, ly, gs, app)` in `input_handler.py` maps logical tap position
   to the correct state transition (start game, open leaderboard, settings, about, etc.).
-- In-game a small `II` icon at the top-right sidebar triggers pause on tap.
+- Tapping during `GAME_OVER_ANIM` skips the animation; tapping `GAME_OVER` returns to
+  the menu. Both paths were previously keyboard-only and locked up on Android.
 
 ### Update checker
 
