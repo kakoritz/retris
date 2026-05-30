@@ -59,19 +59,20 @@ class Pygame2Recipe(CompiledComponentsPythonRecipe):
             )
             open("Setup", "w").write(setup_file)
 
-            # alphablit.c checks PG_ENABLE_ARM_NEON *before* including
-            # simd_blitters.h, so the NEON bridge is never compiled even though
-            # simd_blitters.h declares the symbols for __aarch64__.  The Setup
-            # file has "#define PG_ENABLE_ARM_NEON" with no value, which distutils
-            # passes as -DPG_ENABLE_ARM_NEON (empty macro); #if on an empty macro
-            # is falsy, so NEON code is skipped and the bridge symbols are missing
-            # at link time.  Replace the valueless define with "1" so the macro
-            # is truthy and the NEON bridge compiles in.
+            # The Android Setup template omits simd_blitters_sse2.c from the
+            # surface module's source list.  On ARM64, alphablit.c includes
+            # simd_blitters.h which declares alphablit_alpha_sse2_argb_surf_alpha
+            # (and friends), but without simd_blitters_sse2.c the definitions are
+            # never compiled in → dlopen fails at runtime with a missing-symbol
+            # error.  simd_blitters_sse2.c detects __aarch64__ and auto-includes
+            # sse2neon.h to translate SSE2 intrinsics to NEON, so it compiles
+            # cleanly on ARM64 without any extra flags.
             if 'arm64' in arch.arch or 'aarch64' in arch.arch:
                 content = open("Setup").read()
                 content = content.replace(
-                    "#define PG_ENABLE_ARM_NEON\n",
-                    "#define PG_ENABLE_ARM_NEON 1\n"
+                    "surface src_c/surface.c src_c/alphablit.c src_c/surface_fill.c",
+                    "surface src_c/surface.c src_c/alphablit.c"
+                    " src_c/simd_blitters_sse2.c src_c/surface_fill.c",
                 )
                 open("Setup", "w").write(content)
 
