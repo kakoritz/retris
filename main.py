@@ -441,7 +441,12 @@ def main():
                     ox  = random.randint(-amt, amt)
                     oy  = random.randint(-amt, amt)
 
-                app.screen.blit(bsurf, (M_BOARD_X + ox, M_BOARD_Y + oy))
+                # During demo: centre board vertically in available space (no strips)
+                if _in_demo:
+                    _demo_by = (_BTN_ZONE_Y - M_BOARD_H) // 2
+                    app.screen.blit(bsurf, (M_BOARD_X + ox, _demo_by + oy))
+                else:
+                    app.screen.blit(bsurf, (M_BOARD_X + ox, M_BOARD_Y + oy))
 
                 # Side margin fill + board border
                 draw_mobile_side_margins(app.screen, level_theme)
@@ -449,8 +454,9 @@ def main():
                                  (M_BOARD_X - 1, M_BOARD_Y - 1,
                                   M_BOARD_W + 2, M_BOARD_H + 2), 1)
 
-                # Stats + info strips — hidden during demo (full-screen board)
-                if app.state != DEMO:
+                # Stats + info strips — hidden during demo AND any demo substate
+                _in_demo = app.demo_active or app.state == DEMO
+                if not _in_demo:
                     draw_mobile_stats(
                         app.screen, gs.score, gs.lines, gs.level,
                         in_game=app.state in (PLAYING, CLEARING, CASCADING, PAUSED),
@@ -599,8 +605,10 @@ def main():
         if app.touch_enabled:
             if _mobile:
                 import touch_controls as _tc_mod
-                _tc_mod.set_keys_for_state(app.state)
-                draw_mobile_touch_controls(app.screen, _BTN_ZONE_Y, M_BTN_H, app.state)
+                # Use 'demo' for all demo substates so button bar stays as MENU button
+                _eff_state = DEMO if app.demo_active else app.state
+                _tc_mod.set_keys_for_state(_eff_state)
+                draw_mobile_touch_controls(app.screen, _BTN_ZONE_Y, M_BTN_H, _eff_state)
             elif app.touch_zone_h > 0:
                 draw_touch_controls(app.screen, SCREEN_HEIGHT, app.touch_zone_h)
 
