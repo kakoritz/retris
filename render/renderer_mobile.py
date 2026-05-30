@@ -490,28 +490,35 @@ def draw_mobile_info_strip(surf, piece_queue, hold_piece=None,
             pygame.draw.line(surf, _DIV_COL, (sx, zy+14), (sx, zy+M_INFO_H-14), 1)
 
     # HOLD — right box (tappable: tap to hold/swap piece)
-    box2    = pygame.Rect(SCREEN_WIDTH - M_BOARD_X - 92, zy+5, 90, M_INFO_H-10)
-    t_ms    = pygame.time.get_ticks()
+    # Always animates so it's clear from the start this is interactive
+    box2 = pygame.Rect(SCREEN_WIDTH - M_BOARD_X - 92, zy+5, 90, M_INFO_H-10)
+    t_ms = pygame.time.get_ticks()
 
     if hold_has_piece:
-        # Rainbow border pulse when piece is queued — signals "swap available"
-        h   = (t_ms / 600) % 1.0
+        # Fast rainbow — "swap available"
+        h  = (t_ms / 500) % 1.0
         r2, g2, b2 = colorsys.hsv_to_rgb(h, 1.0, 1.0)
-        gc  = (int(r2*255), int(g2*255), int(b2*255))
+        gc = (int(r2*255), int(g2*255), int(b2*255))
         pygame.draw.rect(surf, gc, box2.inflate(4, 4), 3, border_radius=5)
     else:
-        # Subtle color cycle when empty — "tap me to store a piece"
-        h2  = (t_ms / 1800) % 1.0
-        r2, g2, b2 = colorsys.hsv_to_rgb(h2, 0.7, 0.8)
-        gc  = (int(r2*100), int(g2*100), int(b2*100))  # dim
+        # Slower color cycle when empty — still visible and inviting
+        h2 = (t_ms / 1200) % 1.0
+        r2, g2, b2 = colorsys.hsv_to_rgb(h2, 0.9, 1.0)
+        gc = (int(r2*200), int(g2*200), int(b2*200))
         pygame.draw.rect(surf, gc, box2.inflate(2, 2), 2, border_radius=4)
 
     bc = tuple(max(c-80,0) for c in BORDER_COLOR) if hold_used else BORDER_COLOR
     pygame.draw.rect(surf, _BTN_BG, box2, border_radius=4)
     pygame.draw.rect(surf, bc, box2, 1, border_radius=4)
-    surf.blit(_font(9).render("HOLD", True, _LBL_COL), (box2.x+3, zy+6))
-    _draw_mini_piece(surf, hold_piece, cell1, box2.centerx, cy+6,
-                     dimmed=hold_used, palette_phase=palette_phase)
+
+    if not hold_has_piece:
+        # "HOLD" hint text when empty
+        ht = _font(11).render("TAP  TO  HOLD", True, (120, 120, 180))
+        surf.blit(ht, (box2.centerx - ht.get_width()//2, cy))
+    else:
+        surf.blit(_font(9).render("HOLD", True, _LBL_COL), (box2.x+3, zy+6))
+        _draw_mini_piece(surf, hold_piece, cell1, box2.centerx, cy+6,
+                         dimmed=hold_used, palette_phase=palette_phase)
 
 
 # ── context-sensitive button bar ─────────────────────────────────────────────
@@ -655,16 +662,16 @@ def draw_mobile_leaderboard(surf, scores, hi_name=None, hi_score=None):
 # Scattered piece positions: (shape_key, x, y, rotation_offset, opacity)
 # Fixed positions that look natural across the 460×950 canvas
 _SCATTER_PIECES = [
-    ('I', 30,  80,  1, 35),
-    ('O', 380, 130, 0, 30),
-    ('T', 60,  240, 2, 28),
-    ('S', 390, 320, 0, 32),
-    ('Z', 20,  450, 1, 25),
-    ('L', 350, 500, 3, 30),
-    ('J', 80,  600, 0, 28),
-    ('I', 300, 660, 0, 25),
-    ('T', 40,  780, 1, 32),
-    ('S', 370, 750, 1, 30),
+    ('I', 30,  80,  1, 55),
+    ('O', 380, 130, 0, 50),
+    ('T', 60,  240, 2, 48),
+    ('S', 390, 320, 0, 52),
+    ('Z', 20,  450, 1, 45),
+    ('L', 350, 500, 3, 50),
+    ('J', 80,  600, 0, 48),
+    ('I', 300, 660, 0, 45),
+    ('T', 40,  780, 1, 52),
+    ('S', 370, 750, 1, 50),
 ]
 
 # piece type → color_id
