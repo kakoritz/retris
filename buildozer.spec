@@ -6,7 +6,7 @@ source.dir      = .
 source.include_exts = py,json
 source.exclude_dirs = tests, .git, .claude, __pycache__, .venv, custom_recipes
 
-version         = 2.0.0
+version         = 2.1.0
 
 # Use compiled pygame recipe (builds from source against Android SDL2).
 # custom_recipes/pygame overrides p4a's 2.1.0 with 2.6.1 (Python 3.14 support).

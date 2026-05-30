@@ -160,12 +160,16 @@ def main():
     _mobile = False
     if _android:
         from renderer_mobile import (
-            M_CANVAS_H, M_BOARD_W, M_BOARD_H, M_BOARD_X, M_BOARD_Y, M_BTN_H,
-            M_CELL, M_STATS_H,
+            M_CANVAS_H, M_BOARD_W, M_BOARD_H, M_BOARD_X, M_BOARD_Y,
+            M_BTN_H, M_INFO_H, M_CELL, M_STATS_H,
+            _INFO_ZONE_Y, _BTN_ZONE_Y,
             draw_mobile_board, draw_mobile_danger_line,
             draw_mobile_piece, draw_mobile_ghost,
-            draw_mobile_stats, draw_mobile_touch_controls,
+            draw_mobile_stats, draw_mobile_info_strip,
+            draw_mobile_touch_controls,
             draw_mobile_popup, draw_mobile_level_up,
+            draw_mobile_side_margins,
+            draw_mobile_game_over, draw_mobile_pause,
         )
         _mobile = True
 
@@ -216,8 +220,8 @@ def main():
     if _android:
         import touch_controls as _tc_init
         if _mobile:
-            # Mobile layout: zone below stats+board at y = M_BOARD_Y + M_BOARD_H
-            _tc_init.init(SCREEN_WIDTH, M_BOARD_Y + M_BOARD_H, M_BTN_H)
+            # Mobile: buttons below info strip
+            _tc_init.init(SCREEN_WIDTH, _BTN_ZONE_Y, M_BTN_H)
         elif _touch_zone_h > 0:
             _tc_init.init(SCREEN_WIDTH, SCREEN_HEIGHT, _touch_zone_h)
         app.touch_enabled = True
@@ -396,9 +400,9 @@ def main():
                     bsurf.blit(fl, (0, 0))
 
                 if app.state == GAME_OVER:
-                    draw_game_over_overlay(bsurf, gs.score,
-                                           gs.stat_pieces, gs.stat_tetrises,
-                                           gs.stat_tspins, gs.stat_combo, gs.stat_time)
+                    draw_mobile_game_over(bsurf, gs.score,
+                                          gs.stat_pieces, gs.stat_tetrises,
+                                          gs.stat_tspins, gs.stat_combo, gs.stat_time)
                 elif app.state == GAME_OVER_ANIM:
                     app.go_anim.draw(bsurf)
 
@@ -420,23 +424,28 @@ def main():
 
                 app.screen.blit(bsurf, (M_BOARD_X + ox, M_BOARD_Y + oy))
 
-                # Board border
+                # Side margin fill + board border
+                draw_mobile_side_margins(app.screen, level_theme)
                 pygame.draw.rect(app.screen, BORDER_COLOR,
                                  (M_BOARD_X - 1, M_BOARD_Y - 1,
                                   M_BOARD_W + 2, M_BOARD_H + 2), 1)
 
-                # Stats strip at top
+                # Stats strip (top)
                 draw_mobile_stats(
-                    app.screen, gs.score, gs.lines, gs.level, gs.piece_queue,
-                    app.best, gs.hold_piece, gs.hold_used,
-                    app.score_disp_digits, app.score_anim_from, app.score_anim_offs,
-                    palette_phase=level_theme,
-                    hold_has_piece=gs.hold_piece is not None,
+                    app.screen, gs.score, gs.lines, gs.level,
                     in_game=app.state in (PLAYING, CLEARING, CASCADING, PAUSED),
                 )
 
+                # Info strip (below board: next pieces + hold)
+                draw_mobile_info_strip(
+                    app.screen, gs.piece_queue,
+                    hold_piece=gs.hold_piece, hold_used=gs.hold_used,
+                    hold_has_piece=gs.hold_piece is not None,
+                    palette_phase=level_theme,
+                )
+
                 if app.state == PAUSED:
-                    draw_pause(app.screen, app.blink_on, app.pause_row)
+                    draw_mobile_pause(app.screen, app.blink_on, app.pause_row)
 
             else:
                 # ── DESKTOP rendering path ───────────────────────────────────
@@ -559,7 +568,7 @@ def main():
         # Touch controls (Android only)
         if app.touch_enabled:
             if _mobile:
-                draw_mobile_touch_controls(app.screen, M_BOARD_Y + M_BOARD_H, M_BTN_H)
+                draw_mobile_touch_controls(app.screen, _BTN_ZONE_Y, M_BTN_H)
             elif app.touch_zone_h > 0:
                 draw_touch_controls(app.screen, SCREEN_HEIGHT, app.touch_zone_h)
 
