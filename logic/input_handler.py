@@ -89,6 +89,18 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
             app.state = PAUSED
             return True
 
+    elif app.state == GAME_OVER_ANIM:
+        # Tap anywhere to skip the falling-block animation
+        app.state = app.post_anim_state
+        return True
+
+    elif app.state == GAME_OVER:
+        # Tap anywhere to return to menu
+        music_game.stop()
+        music.start_menu()
+        app.state = MENU
+        return True
+
     elif app.state == PAUSED:
         if INGAME_GEAR_RECT.collidepoint(pt) or PAUSE_CONTINUE_RECT.collidepoint(pt):
             pygame.mixer.music.set_volume(app.pre_pause_vol)

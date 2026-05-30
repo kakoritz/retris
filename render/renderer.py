@@ -455,85 +455,142 @@ def draw_popup(surf: pygame.Surface, count: int, timer: int) -> None:
 
 
 # ── touch controls ────────────────────────────────────────────────────────────
+#
+# Icons are drawn using the same NES pixel-block art as the RETRIS logo.
+# Each icon is a 2D grid (rows × cols) of 0/1; rendered with get_block().
 
-def _draw_drop_icon(surf: pygame.Surface,
-                    cx: int, cy: int, size: int, color: tuple) -> None:
-    """Down-arrow with base bar (hard-drop icon)."""
-    half = size // 2
-    sw   = max(2, size // 6)
-    sh   = size * 5 // 9
-    bar  = max(2, size // 10)
-    pygame.draw.rect(surf, color, (cx - sw // 2, cy - half, sw, sh))
-    pts = [(cx - half, cy - half + sh),
-           (cx + half, cy - half + sh),
-           (cx,        cy + half - bar - 1)]
-    pygame.draw.polygon(surf, color, pts)
-    pygame.draw.rect(surf, color, (cx - half, cy + half - bar, size, bar))
+_TC_ICONS: dict[str, list[list[int]]] = {
+    'left': [           # < filled left-pointing arrow
+        [0,0,0,1,0],
+        [0,0,1,1,0],
+        [0,1,1,1,0],
+        [0,0,1,1,0],
+        [0,0,0,1,0],
+    ],
+    'down': [           # V soft-drop arrow
+        [1,0,0,0,1],
+        [1,1,0,1,1],
+        [0,1,1,1,0],
+        [0,0,1,0,0],
+    ],
+    'drop': [           # ↵ return/enter key (hard drop)
+        [0,0,0,1,1],
+        [0,0,0,0,1],
+        [1,0,0,0,1],
+        [1,1,1,1,0],
+        [0,1,0,0,0],
+    ],
+    'hold': [           # H shape (hold/swap)
+        [1,0,0,0,1],
+        [1,0,0,0,1],
+        [1,1,1,1,1],
+        [1,0,0,0,1],
+        [1,0,0,0,1],
+    ],
+    'rotate': [         # CW arc (open-C with arrowhead tip)
+        [0,1,1,1,0],
+        [1,0,0,0,0],
+        [1,0,0,0,0],
+        [0,1,1,0,0],
+        [0,0,1,0,0],
+        [0,0,1,1,0],
+    ],
+    'right': [          # > filled right-pointing arrow
+        [0,1,0,0,0],
+        [0,1,1,0,0],
+        [0,1,1,1,0],
+        [0,1,1,0,0],
+        [0,1,0,0,0],
+    ],
+}
+
+# T-piece cells for the animated pause button
+_PAUSE_CELLS = [(0, 1), (1, 0), (1, 1), (1, 2)]
+
+# color_id per button slot (1-7 = tetromino palette; 0 = pause/animated)
+_TC_COLOR_IDS = [1, 4, 6, 2, 3, 1, 0]
+_TC_ICON_KEYS = ['left', 'down', 'drop', 'hold', 'rotate', 'right', None]
+_TC_LABELS    = ['LEFT', 'DOWN', 'DROP', 'HOLD', 'ROTATE', 'RIGHT', '']
 
 
-def _draw_hold_icon(surf: pygame.Surface,
-                    cx: int, cy: int, size: int, color: tuple) -> None:
-    """H-shape icon for hold piece."""
-    bw   = max(2, size // 5)
-    half = size // 2
-    pygame.draw.rect(surf, color, (cx - half,      cy - half, bw,   size))
-    pygame.draw.rect(surf, color, (cx + half - bw, cy - half, bw,   size))
-    pygame.draw.rect(surf, color, (cx - half,      cy - bw // 2, size, bw))
+def _draw_block_icon(surf: pygame.Surface, art: list[list[int]],
+                     color_id: int, cell: int,
+                     cx: int, cy: int) -> None:
+    """Render a pixel-art icon centred at (cx, cy) using NES blocks."""
+    rows = len(art)
+    cols = len(art[0])
+    blk  = get_block(color_id, cell)
+    ox   = cx - cols * cell // 2
+    oy   = cy - rows * cell // 2
+    for r, row in enumerate(art):
+        for c, filled in enumerate(row):
+            if filled:
+                surf.blit(blk, (ox + c * cell, oy + r * cell))
 
 
 def draw_touch_controls(surf: pygame.Surface,
                         zone_y: int, zone_h: int) -> None:
-    """Draw the touch-control button strip in the logical zone below the game."""
-    btn_w = SCREEN_WIDTH // 6
+    """Draw the NES-block touch button strip in the logical zone below the game."""
+    n     = len(_TC_ICON_KEYS)
+    btn_w = SCREEN_WIDTH // n
 
     # Zone background
-    pygame.draw.rect(surf, (8, 8, 22), (0, zone_y, SCREEN_WIDTH, zone_h))
-    pygame.draw.line(surf, (70, 70, 110), (0, zone_y), (SCREEN_WIDTH, zone_y), 2)
+    pygame.draw.rect(surf, (6, 6, 18), (0, zone_y, SCREEN_WIDTH, zone_h))
+    pygame.draw.line(surf, (60, 60, 100), (0, zone_y), (SCREEN_WIDTH, zone_y), 2)
 
-    # Pressed-button highlighting
+    # Pressed-button state
     try:
         from logic import touch_controls as _tc
         pressed = set(_tc._held.values())
     except Exception:
         pressed = set()
 
-    icon_col  = (210, 215, 255)
-    label_col = (100, 100, 150)
-    press_col = (32, 32, 65)
-    div_col   = (45, 45, 75)
+    label_col  = (90, 90, 140)
+    press_col  = (28, 28, 55)
+    div_col    = (40, 40, 68)
 
-    icon_sz  = max(14, min(int(btn_w * 0.65), int(zone_h * 0.40)))
-    label_sz = max(9,  zone_h // 28)
+    cell      = max(6, min(btn_w // 6, zone_h // 8))   # block cell size
+    cy_icon   = zone_y + int(zone_h * 0.38)
+    label_sz  = max(8, zone_h // 30)
+    cy_label  = zone_y + zone_h - label_sz * 2 - 2
 
-    cy_icon  = zone_y + int(zone_h * 0.38)
-    cy_label = zone_y + zone_h - label_sz * 2 - 4
+    # Animated pause-piece color (cycles through all 7 piece colors slowly)
+    pause_cid = pygame.time.get_ticks() // 1500 % 7 + 1
 
-    # Single-char icons: ◀ ↺  (blank = drawn) ↻ ▶
-    ICONS  = ['◀', '↺', None, None, '↻', '▶']
-    LABELS = ['LEFT', 'CCW', 'DROP', 'HOLD', 'CW', 'RIGHT']
-
-    for i in range(6):
-        x = btn_w * i
-        w = btn_w if i < 5 else SCREEN_WIDTH - btn_w * 5
+    for i in range(n):
+        x  = btn_w * i
+        w  = btn_w if i < n - 1 else SCREEN_WIDTH - btn_w * (n - 1)
         cx = x + w // 2
 
+        # Pressed highlight — slightly lighter than background
         if i in pressed:
             pygame.draw.rect(surf, press_col, (x, zone_y, w, zone_h))
 
+        # Divider
         if i > 0:
-            pygame.draw.line(surf, div_col, (x, zone_y + 8), (x, zone_y + zone_h - 8), 1)
+            pygame.draw.line(surf, div_col, (x, zone_y + 6), (x, zone_y + zone_h - 6), 1)
 
-        icon = ICONS[i]
-        if icon is not None:
-            s = _font(icon_sz).render(icon, True, icon_col)
-            surf.blit(s, (cx - s.get_width() // 2, cy_icon - s.get_height() // 2))
-        elif LABELS[i] == 'DROP':
-            _draw_drop_icon(surf, cx, cy_icon, int(zone_h * 0.35), icon_col)
+        icon_key = _TC_ICON_KEYS[i]
+        cid      = _TC_COLOR_IDS[i]
+
+        if icon_key is not None:
+            # NES block pixel-art icon
+            _draw_block_icon(surf, _TC_ICONS[icon_key], cid, cell, cx, cy_icon)
         else:
-            _draw_hold_icon(surf, cx, cy_icon, int(zone_h * 0.30), icon_col)
+            # Pause button: animated T-piece cycling through piece colors
+            pc = pause_cid
+            blk = get_block(pc, cell * 2)
+            poc = 3   # T-piece width in cells
+            ox  = cx - poc * cell
+            oy  = cy_icon - cell
+            for (r, c) in _PAUSE_CELLS:
+                surf.blit(blk, (ox + c * cell * 2, oy + r * cell * 2))
 
-        lbl = _font(label_sz).render(LABELS[i], True, label_col)
-        surf.blit(lbl, (cx - lbl.get_width() // 2, cy_label))
+        # Label (skip for pause — it's self-explanatory)
+        lbl_text = _TC_LABELS[i]
+        if lbl_text:
+            lbl = _font(label_sz).render(lbl_text, True, label_col)
+            surf.blit(lbl, (cx - lbl.get_width() // 2, cy_label))
 
 
 # ── sidebar ───────────────────────────────────────────────────────────────────
