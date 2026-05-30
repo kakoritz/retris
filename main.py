@@ -174,6 +174,7 @@ def main():
             draw_mobile_leaderboard,
             draw_mobile_menu, draw_mobile_settings, draw_mobile_controls,
             draw_mobile_practice_overlay, M_PRACTICE_BTN,
+            draw_mobile_name_entry, M_PAUSE_ITEM_RECTS,
         )
         _mobile = True
 
@@ -442,18 +443,22 @@ def main():
                     ox  = random.randint(-amt, amt)
                     oy  = random.randint(-amt, amt)
 
-                # During demo: centre board vertically in available space (no strips)
                 if _in_demo:
-                    _demo_by = (_BTN_ZONE_Y - M_BOARD_H) // 2
-                    app.screen.blit(bsurf, (M_BOARD_X + ox, _demo_by + oy))
+                    # Demo: scale board to fill full canvas width, centre vertically
+                    _dsc  = SCREEN_WIDTH / M_BOARD_W
+                    _dw   = SCREEN_WIDTH
+                    _dh   = int(M_BOARD_H * _dsc)
+                    _dby  = (M_CANVAS_H - M_BTN_H - _dh) // 2
+                    app.screen.blit(
+                        pygame.transform.smoothscale(bsurf, (_dw, _dh)),
+                        (ox, _dby + oy))
                 else:
                     app.screen.blit(bsurf, (M_BOARD_X + ox, M_BOARD_Y + oy))
-
-                # Side margin fill + board border
-                draw_mobile_side_margins(app.screen, level_theme)
-                pygame.draw.rect(app.screen, BORDER_COLOR,
-                                 (M_BOARD_X - 1, M_BOARD_Y - 1,
-                                  M_BOARD_W + 2, M_BOARD_H + 2), 1)
+                    # Side margin fill + board border only during regular gameplay
+                    draw_mobile_side_margins(app.screen, level_theme)
+                    pygame.draw.rect(app.screen, BORDER_COLOR,
+                                     (M_BOARD_X - 1, M_BOARD_Y - 1,
+                                      M_BOARD_W + 2, M_BOARD_H + 2), 1)
 
                 # Stats + info strips — hidden during demo AND any demo substate
                 if not _in_demo:
@@ -569,8 +574,12 @@ def main():
                     draw_pause(app.screen, app.blink_on, app.pause_row)
 
         elif app.state == ENTER_NAME:
-            draw_name_entry(app.screen, app.initials, app.ini_cursor, app.blink_on,
-                            gs.score, gs.lines, gs.level)
+            if _mobile:
+                draw_mobile_name_entry(app.screen, app.initials, app.ini_cursor,
+                                       app.blink_on, gs.score, gs.lines, gs.level)
+            else:
+                draw_name_entry(app.screen, app.initials, app.ini_cursor, app.blink_on,
+                                gs.score, gs.lines, gs.level)
 
         elif app.state == LEADERBOARD:
             if _mobile:
@@ -601,14 +610,17 @@ def main():
             else:
                 draw_controls(app.screen)
 
-        # Touch controls (Android only)
+        # Touch controls (Android only) — hidden during gameplay (gestures used instead)
+        _gameplay_states = (PLAYING, CLEARING, CASCADING, PRACTICE)
         if app.touch_enabled:
             if _mobile:
                 import touch_controls as _tc_mod
-                # Use 'demo' for all demo substates so button bar stays as MENU button
                 _eff_state = DEMO if app.demo_active else app.state
                 _tc_mod.set_keys_for_state(_eff_state)
-                draw_mobile_touch_controls(app.screen, _BTN_ZONE_Y, M_BTN_H, _eff_state)
+                # Only draw button bar for non-gameplay states
+                if app.state not in _gameplay_states and not app.demo_active:
+                    draw_mobile_touch_controls(
+                        app.screen, _BTN_ZONE_Y, M_BTN_H, _eff_state)
             elif app.touch_zone_h > 0:
                 draw_touch_controls(app.screen, SCREEN_HEIGHT, app.touch_zone_h)
 

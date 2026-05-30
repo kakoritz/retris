@@ -41,13 +41,18 @@ MUSIC_END       = pygame.USEREVENT + 1
 INITIALS_CHARS  = "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
 
 # ── board gesture tracker ─────────────────────────────────────────────────────
-# Tap = rotate CW | Swipe L/R = move one cell | Swipe down = hard drop
-# Bottom 10% tap = step down one cell
-_board_gestures: dict = {}   # finger_id → (start_lx, start_ly, action_fired)
-_SWIPE_DROP_PX   = 110       # px downward for hard drop
-_SWIPE_MOVE_PX   = 45        # px horizontal for one-cell move
-_TAP_MAX_PX      = 28        # max movement to count as a tap
-_BOTTOM_ZONE_PCT = 0.90      # bottom 10% of board = step-down zone
+# Tap L/R half = move | Double-tap = enter rotate mode | Swipe L/R = fast move
+# Swipe down = hard drop | Bottom 10% tap = step down
+_board_gestures: dict = {}
+_SWIPE_DROP_PX   = 110
+_SWIPE_MOVE_PX   = 45
+_TAP_MAX_PX      = 28
+_BOTTOM_ZONE_PCT = 0.90
+_DOUBLE_TAP_MS   = 300       # ms between taps to trigger rotate mode
+_ROTATE_EXPIRE_MS = 450      # ms before rotate mode expires
+_last_tap_ms     = 0
+_rotate_mode     = False
+_rotate_last_ms  = 0
 
 
 def _post_key(evt_type: int, key: int) -> None:
@@ -108,15 +113,35 @@ def _handle_board_gesture(event, app) -> bool:
             return False
         dx, dy = abs(lx - sx), abs(ly - sy)
         if dx < _TAP_MAX_PX and dy < _TAP_MAX_PX:
-            board_h = _INFO_ZONE_Y - M_BOARD_Y
-            rel_y   = ly - M_BOARD_Y
+            global _last_tap_ms, _rotate_mode, _rotate_last_ms
+            now      = pygame.time.get_ticks()
+            board_h  = _INFO_ZONE_Y - M_BOARD_Y
+            rel_y    = ly - M_BOARD_Y
+            board_cx = M_BOARD_X + M_BOARD_W // 2
+
             if rel_y > board_h * _BOTTOM_ZONE_PCT:
-                # Bottom 10% tap → step down one cell (intentional small zone)
+                # Bottom 10% → step down one cell
                 _post_key(pygame.KEYDOWN, pygame.K_DOWN)
                 _post_key(pygame.KEYUP,   pygame.K_DOWN)
-            else:
-                # Tap anywhere else → rotate CW
+                _last_tap_ms = now
+                return True
+
+            if _rotate_mode:
+                # In rotate mode: tap fires rotation
                 _post_key(pygame.KEYDOWN, pygame.K_UP)
+                _rotate_last_ms = now
+            elif (now - _last_tap_ms) < _DOUBLE_TAP_MS:
+                # Second quick tap → enter rotate mode + fire rotation
+                _post_key(pygame.KEYDOWN, pygame.K_UP)
+                _rotate_mode    = True
+                _rotate_last_ms = now
+            else:
+                # First tap → move left or right based on board half
+                key = pygame.K_RIGHT if lx >= board_cx else pygame.K_LEFT
+                _post_key(pygame.KEYDOWN, key)
+                _post_key(pygame.KEYUP,   key)
+
+            _last_tap_ms = now
             return True
 
     return False
@@ -219,6 +244,28 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
         return True
 
     elif app.state == PAUSED:
+        # Mobile: tap directly on pause menu items
+        if getattr(app, 'touch_enabled', False):
+            try:
+                from renderer_mobile import M_PAUSE_ITEM_RECTS as _MPIR
+                if _MPIR[0].collidepoint(pt):   # CONTINUE
+                    pygame.mixer.music.set_volume(app.pre_pause_vol)
+                    app.state = PLAYING
+                    return True
+                if _MPIR[1].collidepoint(pt):   # SETTINGS
+                    pygame.mixer.music.set_volume(app.pre_pause_vol)
+                    app.settings_row          = 0
+                    app.settings_return_state = PAUSED
+                    app.state = SETTINGS
+                    return True
+                if _MPIR[2].collidepoint(pt):   # QUIT TO MENU
+                    music_game.stop()
+                    music.start_menu()
+                    app.state = MENU
+                    return True
+            except (ImportError, Exception):
+                pass
+        # Desktop fallback
         if INGAME_GEAR_RECT.collidepoint(pt) or PAUSE_CONTINUE_RECT.collidepoint(pt):
             pygame.mixer.music.set_volume(app.pre_pause_vol)
             app.state = PLAYING
@@ -319,6 +366,10 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
 
 def handle_input(gs: GameState, app: AppState, dt: int) -> None:
     """Process all pending pygame events and run DAS auto-repeat."""
+    global _rotate_mode, _rotate_last_ms
+    # Expire rotate mode if no tap for a while
+    if _rotate_mode and (pygame.time.get_ticks() - _rotate_last_ms) > _ROTATE_EXPIRE_MS:
+        _rotate_mode = False
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
