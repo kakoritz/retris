@@ -2,6 +2,60 @@
 
 ---
 
+## v2.2.0 — Full Mobile UI Redesign
+*2026-05-30*
+
+### Added
+- **Context-sensitive button bar** — the 6-button strip changes layout per game state:
+  - In-game: LEFT / DOWN / DROP / HOLD / ROTATE / RIGHT
+  - Menu / Pause: UP | SELECT (white text) | DOWN
+  - Name entry: UP / LEFT / OK / RIGHT / DOWN
+  - Game over: single flashing CONTINUE button
+  - Leaderboard / Settings / About: animated T-piece MENU button (fires K_ESCAPE)
+- **New leaderboard screen** — always shows 10 rows (empty = dashes), large title,
+  alternating row backgrounds, no back button text; animated T-piece MENU button
+  in the button bar replaces the desktop BACK button.
+- **Navigation icons** — new NES block-art UP ▲ and DOWN ▼ arrows for menu navigation.
+- **Ghost opacity 40% default on mobile** — was 15% (desktop default).
+
+### Changed
+- **Canvas redesigned** — 460×950 (was 965): stats 90px + board 660px + info 100px
+  + buttons 100px. CELL=33 (was 40); board fills 74 % of phone width.
+- **Stats strip (90px)** — LEVEL in font-46, SCORE in font-30 yellow, LINES font-26.
+  Fills the full strip width. Numbers are now clearly readable.
+- **Info strip (100px, doubled)** — NEXT1 in prominent left box (cell=18),
+  NEXT2-4 smaller in the middle, HOLD in right box (cell=18) with cyan glow pulse.
+- **Touch buttons (100px, doubled)** — each button 235px physical height; comfortably
+  tappable. Borders, press highlight, icon + label.
+- **Pause overlay** — menu items are bold and larger (font-28 for selected item).
+
+### Fixed
+- **Game-over overlay centred** — now uses `M_BOARD_W/H` (330×660) not desktop
+  `BOARD_WIDTH/HEIGHT` (300×600); text is properly centred on the mobile board.
+- **Pause overlay Y-centred** — content centred at board midpoint (y=420 in canvas),
+  no longer floating in the upper quarter.
+
+---
+
+## v2.1.0 — Info Strip Below Board, Bigger Score, Side Margins
+*2026-05-30*
+
+### Added
+- **Info strip (55px) between board and controls** — NEXT pieces on left (NEXT1
+  prominent, NEXT2-4 smaller), HOLD piece on right with cyan glow.
+- **Side board margins** — 30px margins filled with level-theme–tinted accent color
+  + 1px inner highlight line; no longer plain black strips.
+
+### Changed
+- **Stats strip** — score font-24, level/lines font-26; bigger than v2.0 strip.
+- **Canvas** — 460×965 (stats 60 + board 800 + info 55 + buttons 50).
+- **Pause overlay** — Y-centred on board area (first pass).
+
+### Fixed
+- **Game-over overlay** — uses mobile board dimensions for centering.
+
+---
+
 ## v2.0.0 — Platform-Split Architecture & Mobile Layout Overhaul
 *2026-05-29*
 

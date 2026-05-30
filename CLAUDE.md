@@ -74,8 +74,9 @@ app_state.py      AppState — shell state across sessions; state-machine consta
 game_logic.py     spawn_next, do_hold, start_new_game, end_game, do_lock, etc.
 input_handler.py  event dispatch + DAS auto-repeat (handle_input)
 renderer.py       desktop draw_* functions, font cache, rendering constants
-renderer_mobile.py  Android layout (460×940, stats strip, CELL=40, compact controls)
+renderer_mobile.py  Android layout (460×950, CELL=33, 4-zone canvas, context buttons)
 renderer_web.py   future web/multiplayer renderer stub
+ANDROID_BUILD.md  full APK build guide — CI, local build, SIMD fix, troubleshooting
 rotation.py       SRS wall-kick engine, T-spin detection
 game_constants.py gameplay-tuning constants — no Pygame dependency
 board.py          grid, collision, line-clear, cascade gravity

@@ -40,3 +40,4 @@ p4a.local_recipes = ./custom_recipes
 [buildozer]
 log_level = 2
 warn_on_root = 1
+build_dir = /home/kakoritz/.retris-build

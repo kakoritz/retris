@@ -9,6 +9,50 @@ part development commentary — what changed, what it means, and where the game 
 
 ---
 
+## v2.2.0 Review — Full Mobile UI Redesign
+
+### The geometry problem was finally solved correctly
+
+The core issue since v2.0 was that CELL=40 gave a 800px-tall board in a 940px canvas,
+leaving only 140px for all strips — too little to be readable. The fix (CELL=33,
+canvas 460×950) trades board size for strip height and gets both right. The stats
+strip at 90px is finally large enough for font-46 level numbers and font-30 scores.
+The info strip at 100px shows pieces clearly. The button bar at 100px (235px physical)
+is comfortable to tap without looking. That's the right trade.
+
+### Context-sensitive button bar — genuinely good UX
+
+The single most impactful UX improvement of the whole Android effort. Instead of
+always showing 6 game buttons (useless on menu/leaderboard/game-over screens), the
+bar changes per state. Menu gets UP/SELECT/DOWN — clean, obvious, no hunting. Game
+over gets a single flashing CONTINUE — impossible to miss. Leaderboard gets the
+animated T-piece MENU button — consistent with the rest of the brand. This is how
+mobile UX should work, and it's a design pattern worth copying to future projects.
+
+### The SIMD rabbit hole — the real lesson
+
+The entire Android journey from crash → working game was caused by two missing `.c`
+files in pygame's ARM64 surface module. Every other fix (NEON flags, Cython versions,
+p4a pins) was noise around that one root cause. The lesson: when an Android build
+crashes with a missing symbol, the symbol is probably in a `.c` file that wasn't
+compiled in — check the Setup file before anything else.
+
+The CI cache poisoning made this take weeks instead of days. A SHA256 stamp on the
+recipe file would have caught it on the second attempt. Added to ANDROID_BUILD.md so
+future projects don't repeat this.
+
+### What's still rough
+
+- Side panels at 65px each are noticeable gaps — they're themed now but still feel
+  like "wasted space." A future pass could use them for something (level progress bar,
+  danger indicator, score delta animations).
+- The game-over animation still uses desktop (300×600) coordinates on the mobile
+  (330×660) board — blocks fall in the upper-left region instead of being centered.
+- ENTER_NAME touch path has never been tested on hardware.
+- No landscape mode support — the game assumes portrait orientation.
+
+---
+
 ## v2.0.0 Review — Platform Architecture Split and Mobile Layout Overhaul
 
 ### The layout fix — the real problem is now solved

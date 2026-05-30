@@ -147,30 +147,40 @@ python3 main.py
 
 ## Android APK
 
-Every merge to `main` automatically builds an Android APK via GitHub Actions.
+Every merge to `main` automatically builds an Android APK via GitHub Actions (~20 min).
+For local builds (2–5 min after first setup), see [ANDROID_BUILD.md](ANDROID_BUILD.md).
 
-**To install on your phone:**
-1. Go to the [Releases](../../releases/tag/apk-latest) page
-2. Download `retris-*.apk`
-3. Open the file on your Android device
-4. Enable *Install from unknown sources* if prompted (Settings → Security)
+**To install from CI:**
+1. Go to the [Releases](../../releases/tag/apk-latest) page → download `retris-*.apk`
+2. Enable *Install from unknown sources* on device if prompted
+3. `adb uninstall org.kakoritz.retris && adb install retris-*.apk`
 
-**Touch controls (Android):**
+**Mobile layout (v2.2.0):**
 
-The game detects Android at startup and switches to a full-width layout with a touch
-zone below the game board. Seven tap targets span the zone:
+```
+┌─────────────────────────────────────┐  ← 90 px stats strip
+│  LEVEL   SCORE 00000000   LINES  II │     (font-46 level, font-30 score)
+├─────────────────────────────────────┤  ← game board (330×660, CELL=33)
+│  side │                   │  side   │     fills ~74% of phone width
+│  panel│    board 10×20    │  panel  │     side panels theme-colored
+├─────────────────────────────────────┤  ← 100 px info strip
+│ [NEXT] N2 N3 N4        [HOLD]       │     next pieces left, hold right
+├─────────────────────────────────────┤  ← 100 px context button bar
+│  context-sensitive buttons          │     changes per game state
+└─────────────────────────────────────┘
+```
 
-| Button | Shape | Action |
-|--------|-------|--------|
-| LEFT `<` | NES block arrow | Move left (DAS auto-repeat while held) |
-| DOWN `V` | NES block arrow | Soft drop |
-| DROP | Return-key icon | Hard drop (instant lock) |
-| HOLD | `H`-block | Swap hold piece |
-| ROTATE `↻` | Curved arrow | Rotate clockwise |
-| RIGHT `>` | NES block arrow | Move right (DAS auto-repeat while held) |
-| `II` (stats strip) | Text button, top-right | Pause / open menu |
+**Context-sensitive button bar:**
 
-Tap the `II` button in the top-right of the stats strip to pause at any time.
+| Screen | Buttons |
+|--------|---------|
+| In-game | LEFT / DOWN / DROP / HOLD / ROTATE / RIGHT |
+| Menu / Pause | ▲ UP \| SELECT \| ▼ DOWN |
+| Name entry | ▲ UP / ◄ LEFT / OK / RIGHT ► / ▼ DOWN |
+| Game over | CONTINUE (flashing) |
+| Leaderboard / Settings / About | Animated T-piece MENU button |
+
+Tap `II` in the top-right of the stats strip to pause at any time during gameplay.
 
 ---
 

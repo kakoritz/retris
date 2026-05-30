@@ -352,84 +352,95 @@ returns to the menu from any demo phase.
 
 ## 6.7 Android Build & 3-Platform Architecture
 
+> See [ANDROID_BUILD.md](ANDROID_BUILD.md) for the complete build guide including
+> local build setup, troubleshooting, and how to carry this to a new project.
+
 ### Platform renderer split
 
-RETRIS has three renderer targets. All share the same game logic, assets, and physics:
+Three renderer files share the same game logic, assets, and physics:
 
 | File | Target | Canvas |
 |------|--------|--------|
-| `render/renderer.py` | Desktop (PC) | 460×600 (sidebar layout) |
-| `render/renderer_mobile.py` | Android | 460×940 (stats top + board + controls bottom) |
-| `render/renderer_web.py` | Future web portal | TBD |
+| `render/renderer.py` | Desktop (PC) | 460×600 — sidebar layout |
+| `render/renderer_mobile.py` | Android | 460×950 — stats/board/info/buttons |
+| `render/renderer_web.py` | Future web portal | stub / TBD |
 
-`main.py` detects `ANDROID_ARGUMENT` at startup and imports from `renderer_mobile` for
-all Android drawing. The desktop code path is unchanged.
+`main.py` detects `ANDROID_ARGUMENT` at startup and imports from `renderer_mobile`.
+The desktop code path is completely unchanged.
 
 **Shared across all platforms:**
 - `render/sprites.py` — `get_block(color_id, size, palette_phase)` block cache
 - `render/particles.py` — particle burst system
 - `render/game_over_anim.py` — per-block physics for GAME OVER sequence
-- `logic/` — game logic, input, touch controls (platform-agnostic)
-- `core/` — game state, app state, board, piece (platform-agnostic)
+- `logic/` — game_logic, input_handler, touch_controls (platform-agnostic)
+- `core/` — game_state, app_state, board, piece (platform-agnostic)
 
-### APK build
+### Mobile canvas layout (v2.2.0)
 
-RETRIS is packaged as a standard Android APK using **Buildozer + python-for-android**.
-Every push to `main` triggers a GitHub Actions build and publishes to the
-`apk-latest` GitHub Release.
+```
+  y=0   ┌─────────────────────────────────────────────┐
+        │  Stats strip  90 px                         │
+        │  LEVEL(46pt) | SCORE(30pt yellow) | LINES   │
+  y=90  ├───────────────────────────────────────────╌─┤
+        │ side │                           │ side     │
+        │ 65px │  Board  330×660  CELL=33  │ 65px     │
+        │      │  (theme-tinted panels)    │          │
+  y=750 ├──────┴───────────────────────────┴──────────┤
+        │  Info strip  100 px                         │
+        │  [NEXT1] N2 N3 N4 ....... [HOLD]            │
+  y=850 ├─────────────────────────────────────────────┤
+        │  Button bar  100 px  (context-sensitive)    │
+  y=950 └─────────────────────────────────────────────┘
+```
 
-### Runtime detection — mobile layout
+Physical on Pixel 5a (1080 usable width, scale = 1080/460 = 2.348):
+- Stats: 211 px physical
+- Board: 775×1550 px physical (71% screen width)
+- Info: 235 px physical
+- Buttons: 235 px physical
+- Total: ~2231 px (fits in 2264 usable ✓)
 
-The presence of `ANDROID_ARGUMENT` in the environment triggers the mobile renderer:
-- Canvas: `460 × 940` logical pixels (`SCREEN_WIDTH × M_CANVAS_H`)
-- Scale: `device_width / 460` — fills phone width in portrait mode
-- Board: CELL=40 (vs desktop CELL=30), 400×800 px, 30 px margins each side
-- Stats strip (top 70 px): HOLD piece, LVL, LNS, 8-digit SCORE, NEXT×2, PAUSE button
-- Touch controls (bottom 70 px): 6 bordered buttons with press highlight
+### Context-sensitive button bar
 
-Physical dimensions on Pixel 5a (1080×2264):
-- Scale = 2.348 — stats 164 px, board 939×1878 px, controls 164 px (total 2206 px)
-- Storage: `ANDROID_PRIVATE` overrides config/highscore paths
+`touch_controls.set_keys_for_state(state)` called each frame rebuilds BUTTONS:
 
-### Touch controls (mobile, 6 buttons, no pause in zone)
+| State | Layout |
+|-------|--------|
+| playing / clearing / cascading / demo | LEFT DOWN DROP HOLD ROTATE RIGHT |
+| menu / paused | ▲ UP \| SELECT \| ▼ DOWN |
+| enter_name | ▲ UP / ◄ LEFT / OK / RIGHT ► / ▼ DOWN |
+| game_over_anim / game_over | CONTINUE (flashing) |
+| leaderboard / settings / about / controls | T-piece MENU (K_ESCAPE) |
 
-| Button | Key | Icon |
-|--------|-----|------|
-| LEFT | ← | Block `<` arrow |
-| DOWN | ↓ | Block `V` arrow |
-| DROP | Space | Return-key icon |
-| HOLD | C | Block H-shape |
-| ROTATE | ↑ | Curved block arrow |
-| RIGHT | → | Block `>` arrow |
+### Touch UI — FINGERDOWN routing
 
-Pause is a tap target (`M_PAUSE_RECT`) in the top stats strip, not in the button zone.
+1. `touch_controls.handle()` — converts FINGER coords to synthetic KEYDOWN/KEYUP events
+2. `_handle_click(lx, ly, gs, app)` — handles tap on UI elements (start, pause, etc.)
+   - In-game: `M_PAUSE_RECT` (top-right of stats strip) → pause
+   - Game-over: tap CONTINUE button → skip/return to menu
+   - Leaderboard: T-piece MENU button fires K_ESCAPE → back to menu
 
-`FINGERDOWN/UP/MOTION` → `KEYDOWN/KEYUP` synthetic events posted to the pygame queue.
-FINGERMOTION handles mid-gesture slides between buttons.
+### APK build overview
 
-### Touch UI — click routing
+Full details in [ANDROID_BUILD.md](ANDROID_BUILD.md). Key points:
 
-`_handle_click(lx, ly, gs, app)` in `input_handler.py` handles all tap targets:
-- Menu: START GAME, LEADERBOARD, SETTINGS, ABOUT hitboxes
-- In-game: `INGAME_GEAR_RECT` (desktop) or `M_PAUSE_RECT` (mobile) → pause
-- Game-over states: tap anywhere to skip animation / return to menu
+- **CI:** GitHub Actions → `buildozer android debug` → published to `apk-latest` release
+  (~20 min build, ~10 min with cache hit)
+- **Local:** `~/.buildozer-env/bin/buildozer android debug` → `bin/*.apk`
+  (~2–5 min after first-time setup)
+- **Critical:** the custom pygame recipe at `custom_recipes/pygame/__init__.py`
+  injects `simd_blitters_sse2.c` + `simd_blitters_avx2.c` into the ARM64 surface
+  module. Without it the game crashes on launch with a missing symbol error.
+- **Path requirement:** python-for-android rejects build paths containing spaces.
+  Set `build_dir = /home/<user>/.retris-build` in `[buildozer]` section if the
+  project lives under a path with spaces.
+- **Venv requirement:** system Python on Debian/Ubuntu 22.04+ blocks pip. Run
+  buildozer from a venv: `python3 -m venv ~/.buildozer-env && pip install buildozer`
 
 ### Update checker
 
-`core/updater.py` spawns a daemon thread on startup that queries the GitHub releases
-API (`/repos/kakoritz/retris/releases`) and parses version tags. Status values:
-`checking | up_to_date | available | offline | error`. The About screen (`A` at menu,
-or tap ⓘ) displays version, update status, and formatted release notes.
-`INTERNET` permission is declared in `buildozer.spec` for Android.
-
-### Build spec highlights
-
-- `android.archs = arm64-v8a` — 64-bit only (all phones since 2019)
-- `android.accept_sdk_license = True` — non-interactive CI builds
-- `requirements = python3,pygame_ce,numpy` — `pygame_ce` has official Android ARM64
-  prebuilt wheels on PyPI; latest p4a (Python 3.14 target) no longer compiles `pygame2`
-- `android.meta_data = audio.buffer_size:1024` — reduced mixer buffer for lower
-  audio latency on Android
+`core/updater.py` spawns a daemon thread on startup querying the GitHub releases API.
+`INTERNET` permission is declared in `buildozer.spec`.
 
 ---
 
