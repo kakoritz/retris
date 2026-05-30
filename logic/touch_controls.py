@@ -15,12 +15,13 @@ Layout (left → right):
 import pygame
 
 _KEYS = [
-    pygame.K_LEFT,   # ◀ move left
-    pygame.K_z,      # ↺ rotate CCW
-    pygame.K_SPACE,  # ↓ hard drop
-    pygame.K_c,      # ⏹ hold
-    pygame.K_UP,     # ↻ rotate CW
-    pygame.K_RIGHT,  # ▶ move right
+    pygame.K_LEFT,    # < move left      (DAS-repeatable)
+    pygame.K_DOWN,    # V soft drop      (repeatable)
+    pygame.K_SPACE,   # ↵ hard drop      (single-fire)
+    pygame.K_c,       # SWAP hold piece  (single-fire)
+    pygame.K_UP,      # ↻ rotate CW      (single-fire)
+    pygame.K_RIGHT,   # > move right     (DAS-repeatable)
+    pygame.K_ESCAPE,  # II pause / menu  (single-fire)
 ]
 
 # (Rect, key) — populated by init(); rects are in logical canvas coordinates
@@ -33,14 +34,15 @@ _held: dict[int, int] = {}
 def init(canvas_w: int, zone_y: int, zone_h: int) -> None:
     """Set up button rects in logical canvas coordinates."""
     global BUTTONS
-    btn_w = canvas_w // 6
+    n     = len(_KEYS)
+    btn_w = canvas_w // n
     BUTTONS = [
         (pygame.Rect(btn_w * i,
                      zone_y,
-                     btn_w if i < 5 else canvas_w - btn_w * 5,
+                     btn_w if i < n - 1 else canvas_w - btn_w * (n - 1),
                      zone_h),
          _KEYS[i])
-        for i in range(6)
+        for i in range(n)
     ]
 
 
