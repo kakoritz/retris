@@ -9,6 +9,43 @@ part development commentary — what changed, what it means, and where the game 
 
 ---
 
+## v1.11.3 Review — Menu Overhaul and Android Fix
+
+### Menu layout — much better spatial hierarchy
+
+The 4-quarter grid (title / tile art / items / blank) gives every element room and
+creates a proper visual rhythm the old layout lacked. Having the bottom 25 % empty
+is the right call — crowded menus feel cheap. Tetromino parade stays where it belongs
+as a living brand element.
+
+Moving Settings into the nav list (instead of an icon button) is strictly correct.
+Users look in the list; they don't hunt for glyphs. The previous two-icon approach
+tried to be clever and just made things harder to discover.
+
+The tiny `i` at the bottom-right is genuinely good UX for this kind of feature:
+present for people who want it, invisible to everyone else.
+
+### Pause menu cursor — the right call, overdue
+
+Replacing the button-style pause overlay with the same NES cursor selector as the
+main menu gives the whole UI a coherent idiom. On mobile, full-width buttons are
+more tappable; on desktop, UP/DOWN feels natural in a game that already uses arrow
+keys everywhere. Both are served now.
+
+Moving the pause gear to bottom-right removes the top-right clumsiness that made it
+hard to reach with a right thumb. Placement under a game board element is where
+Android shooters put their pause — correct muscle memory for mobile gamers.
+
+### Android build — cache poisoning was the real villain
+
+Multiple rounds of NEON-fix commits (v1.11.1, v1.11.2, v1.11.3) all failed not
+because the fix was wrong, but because the GitHub Actions `restore-keys` fallback
+kept serving a stale `surface.so` that predated the fix. The recipe-hash stamp
+closes this permanently: the next build will be the first that actually compiles
+pygame with `PG_ENABLE_ARM_NEON 1` applied.
+
+---
+
 ## v1.11.0 Review — Update Checker, Menu Redesign, Build Fix
 
 ### Menu redesign — the right direction, first pass

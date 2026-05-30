@@ -158,10 +158,11 @@ Every merge to `main` automatically builds an Android APK via GitHub Actions.
 ### Menu
 | Key / Tap | Action |
 |-----------|--------|
-| `Space` or click **START GAME** | Start game |
-| Click **LEADERBOARD** | High scores |
-| Click **ⓘ** icon (top-left) or `A` | About / update checker |
-| Click **⚙** icon (top-right) or `S` | Settings |
+| `↑` / `↓` then `Enter` | Navigate and confirm menu item |
+| `Space` or tap **START GAME** | Start game |
+| Tap **LEADERBOARD** | High scores |
+| Tap **SETTINGS** | Settings screen |
+| Tap tiny **i** (bottom-right) or `A` | About / update checker |
 | `D` | Demo mode (or auto-triggers after 60 s idle) |
 | `T` | Music Preview |
 
@@ -187,10 +188,10 @@ Every merge to `main` automatically builds an Android APK via GitHub Actions.
 ### Pause
 | Key / Tap | Action |
 |-----------|--------|
-| `Space` or tap **CONTINUE** | Resume |
-| `S` | Settings |
-| `Q` or tap **QUIT TO MENU** | Exit to menu |
-| Tap **⚙/II** icon (top-right, Android) | Open pause menu |
+| `↑` / `↓` | Navigate pause menu cursor |
+| `Enter` or `Space` | Confirm selection |
+| `Esc` | Resume immediately |
+| Tap **⚙/II** icon (bottom-right, Android) | Open pause menu |
 
 ### Music Preview
 | Key | Action |

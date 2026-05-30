@@ -2,6 +2,31 @@
 
 ---
 
+## v1.11.3 — Menu Overhaul & Android APK Fix
+*2026-05-29*
+
+### Changed
+- **Menu layout** — 4-quarter design: title (top 25 %), tetromino tile art (second 25 %),
+  menu items (third 25 %), blank breathing room (bottom 25 %). Replaces old cluttered layout.
+- **Settings as menu item** — "SETTINGS" is now the third item in the main menu, selected
+  with the same NES cursor as START GAME and LEADERBOARD. The icon button is removed.
+- **Info button** — tiny white `i` at the far bottom-right corner; unobtrusive but tappable.
+- **Pause menu** — replaced button-style with the same NES cursor selector used in the main
+  menu: UP / DOWN navigate, ENTER / SPACE confirm. Items: CONTINUE · SETTINGS · QUIT TO MENU.
+- **Pause gear icon** — moved from top-right to bottom-right corner for easier thumb reach on
+  mobile.
+- **"by kakoritz"** — appears inline with the version string at the bottom of the menu
+  instead of as a separate element.
+
+### Fixed
+- **Android NEON bridge** — pygame's ARM64 build now compiles with `PG_ENABLE_ARM_NEON 1`
+  so `alphablit_alpha_sse2_argb_surf_alpha` is correctly resolved in `surface.so`.
+- **CI cache poisoning** — added a recipe-hash stamp so a stale cached pygame build is
+  detected and purged when the custom recipe changes, preventing the old broken `surface.so`
+  from being silently reused across builds.
+
+---
+
 ## v1.11.0 — Update Checker, Menu Redesign, Android Build Fix
 *2026-05-28*
 
