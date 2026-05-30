@@ -98,11 +98,15 @@ def _handle_board_gesture(event, app) -> bool:
         dx = abs(lx - sx)
         dy = abs(ly - sy)
         if dx < _TAP_MAX_PX and dy < _TAP_MAX_PX:
-            board_cx = M_BOARD_X + M_BOARD_W // 2
-            if lx >= board_cx:
-                _post_key(pygame.KEYDOWN, pygame.K_UP)   # rotate CW
+            # Three zones: left third → move left, middle → rotate, right third → move right
+            third  = M_BOARD_W // 3
+            rel_x  = lx - M_BOARD_X
+            if rel_x < third:
+                _post_key(pygame.KEYDOWN, pygame.K_LEFT)   # left third
+            elif rel_x > third * 2:
+                _post_key(pygame.KEYDOWN, pygame.K_RIGHT)  # right third
             else:
-                _post_key(pygame.KEYDOWN, pygame.K_z)    # rotate CCW
+                _post_key(pygame.KEYDOWN, pygame.K_UP)     # middle → rotate CW
             return True
 
     return False
