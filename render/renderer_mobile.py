@@ -881,8 +881,8 @@ def draw_mobile_controls(surf):
     zlbl("↻  TAP  ROTATE",  DX + THIRD,      DY,        THIRD,    HALF,  11)
     zlbl("▼  TAP  STEP",    DX + THIRD,      DY + HALF, THIRD,    DH-HALF, 11)
 
-    # Swipe label below diagram
-    surf.blit(_font(13).render("SWIPE  ↓  ANYWHERE  =  HARD  DROP", True, RED),
+    # Swipe labels below diagram
+    surf.blit(_font(13).render("SWIPE ← CCW ROTATE   SWIPE → CW ROTATE   SWIPE ↓ DROP", True, RED),
               (cx - _font(13).size("SWIPE  ↓  ANYWHERE  =  HARD  DROP")[0]//2,
                DY + DH + 8))
 

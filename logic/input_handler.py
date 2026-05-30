@@ -41,15 +41,17 @@ MUSIC_END       = pygame.USEREVENT + 1
 INITIALS_CHARS  = "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
 
 # ── board gesture tracker ─────────────────────────────────────────────────────
-# Tap L/R half = move | Double-tap = enter rotate mode | Swipe L/R = fast move
-# Swipe down = hard drop | Bottom 10% tap = step down
+# Tap left half = move left | Tap right half = move right
+# Swipe left = rotate CCW | Swipe right = rotate CW | Swipe down = hard drop
+# Tap bottom 10% = step down one cell
 _board_gestures: dict = {}
-_SWIPE_DROP_PX   = 110
-_SWIPE_MOVE_PX   = 45
-_TAP_MAX_PX      = 28
-_BOTTOM_ZONE_PCT = 0.90
-_DOUBLE_TAP_MS   = 300       # ms between taps to trigger rotate mode
-_ROTATE_EXPIRE_MS = 450      # ms before rotate mode expires
+_SWIPE_DROP_PX   = 110       # px down for hard drop
+_SWIPE_ROT_PX    = 50        # px horizontal for rotate
+_TAP_MAX_PX      = 28        # max movement for a tap
+_BOTTOM_ZONE_PCT = 0.90      # bottom 10% of board = step down
+# unused but kept for handle_input reference
+_DOUBLE_TAP_MS   = 300
+_ROTATE_EXPIRE_MS = 450
 _last_tap_ms     = 0
 _rotate_mode     = False
 _rotate_last_ms  = 0
@@ -97,12 +99,11 @@ def _handle_board_gesture(event, app) -> bool:
             _post_key(pygame.KEYDOWN, pygame.K_SPACE)
             _board_gestures[event.finger_id] = (sx, sy, 'drop')
             return True
-        # Swipe left or right → move one cell
-        if adx > _SWIPE_MOVE_PX and adx > ady * 1.3:
-            key = pygame.K_RIGHT if dx > 0 else pygame.K_LEFT
+        # Swipe left → rotate CCW | Swipe right → rotate CW
+        if adx > _SWIPE_ROT_PX and adx > ady * 1.3:
+            key = pygame.K_UP if dx > 0 else pygame.K_z
             _post_key(pygame.KEYDOWN, key)
-            _post_key(pygame.KEYUP,   key)
-            _board_gestures[event.finger_id] = (sx, sy, 'move')
+            _board_gestures[event.finger_id] = (sx, sy, 'rotate')
             return True
 
     elif event.type == pygame.FINGERUP:
@@ -113,8 +114,6 @@ def _handle_board_gesture(event, app) -> bool:
             return False
         dx, dy = abs(lx - sx), abs(ly - sy)
         if dx < _TAP_MAX_PX and dy < _TAP_MAX_PX:
-            global _last_tap_ms, _rotate_mode, _rotate_last_ms
-            now      = pygame.time.get_ticks()
             board_h  = _INFO_ZONE_Y - M_BOARD_Y
             rel_y    = ly - M_BOARD_Y
             board_cx = M_BOARD_X + M_BOARD_W // 2
@@ -123,25 +122,11 @@ def _handle_board_gesture(event, app) -> bool:
                 # Bottom 10% → step down one cell
                 _post_key(pygame.KEYDOWN, pygame.K_DOWN)
                 _post_key(pygame.KEYUP,   pygame.K_DOWN)
-                _last_tap_ms = now
-                return True
-
-            if _rotate_mode:
-                # In rotate mode: tap fires rotation
-                _post_key(pygame.KEYDOWN, pygame.K_UP)
-                _rotate_last_ms = now
-            elif (now - _last_tap_ms) < _DOUBLE_TAP_MS:
-                # Second quick tap → enter rotate mode + fire rotation
-                _post_key(pygame.KEYDOWN, pygame.K_UP)
-                _rotate_mode    = True
-                _rotate_last_ms = now
             else:
-                # First tap → move left or right based on board half
+                # Tap left half → move left | tap right half → move right
                 key = pygame.K_RIGHT if lx >= board_cx else pygame.K_LEFT
                 _post_key(pygame.KEYDOWN, key)
                 _post_key(pygame.KEYUP,   key)
-
-            _last_tap_ms = now
             return True
 
     return False
