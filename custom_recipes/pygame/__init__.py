@@ -59,20 +59,22 @@ class Pygame2Recipe(CompiledComponentsPythonRecipe):
             )
             open("Setup", "w").write(setup_file)
 
-            # The Android Setup template omits simd_blitters_sse2.c from the
-            # surface module's source list.  On ARM64, alphablit.c includes
-            # simd_blitters.h which declares alphablit_alpha_sse2_argb_surf_alpha
-            # (and friends), but without simd_blitters_sse2.c the definitions are
-            # never compiled in → dlopen fails at runtime with a missing-symbol
-            # error.  simd_blitters_sse2.c detects __aarch64__ and auto-includes
-            # sse2neon.h to translate SSE2 intrinsics to NEON, so it compiles
-            # cleanly on ARM64 without any extra flags.
+            # The Android Setup template omits the SIMD blitter sources from the
+            # surface module.  alphablit.c references symbols from both files at
+            # link time regardless of architecture:
+            #   simd_blitters_sse2.c — defines alphablit_alpha_sse2_argb_surf_alpha
+            #     etc.; on ARM64 it includes sse2neon.h to translate SSE2 → NEON.
+            #   simd_blitters_avx2.c — defines blit_blend_rgb_*_avx2 etc. as stubs
+            #     that return 0/error on non-AVX2 hardware; pg_has_avx2() returns 0
+            #     so the stubs are never called, but they must be linked.
+            # Without both files surface.so has unresolved symbols and dlopen fails.
             if 'arm64' in arch.arch or 'aarch64' in arch.arch:
                 content = open("Setup").read()
                 content = content.replace(
                     "surface src_c/surface.c src_c/alphablit.c src_c/surface_fill.c",
                     "surface src_c/surface.c src_c/alphablit.c"
-                    " src_c/simd_blitters_sse2.c src_c/surface_fill.c",
+                    " src_c/simd_blitters_sse2.c src_c/simd_blitters_avx2.c"
+                    " src_c/surface_fill.c",
                 )
                 open("Setup", "w").write(content)
 
