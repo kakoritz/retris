@@ -57,7 +57,23 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
 
     if app.state == MENU:
         app.menu_idle_timer = 0
-        if MENU_START_RECT.collidepoint(pt):
+
+        # Mobile: large tap zones for each menu item (font-52, item_y=400/490/580)
+        _mobile_menu = getattr(app, 'touch_enabled', False)
+        if _mobile_menu:
+            import pygame as _pg
+            _cx = SCREEN_WIDTH // 2
+            _iw = 420   # generous tap width
+            _ih = 70    # generous tap height
+            _m_start = _pg.Rect(_cx - _iw//2, 395, _iw, _ih)
+            _m_lb    = _pg.Rect(_cx - _iw//2, 485, _iw, _ih)
+            _m_set   = _pg.Rect(_cx - _iw//2, 575, _iw, _ih)
+        else:
+            _m_start = MENU_START_RECT
+            _m_lb    = MENU_LB_RECT
+            _m_set   = MENU_SETTINGS_ITEM_RECT
+
+        if _m_start.collidepoint(pt):
             app.menu_row = 0
             start_new_game(gs, app)
             app.best = highscore.best()
@@ -65,13 +81,13 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
             music_game.start_sequence()
             app.state = PLAYING
             return True
-        if MENU_LB_RECT.collidepoint(pt):
+        if _m_lb.collidepoint(pt):
             app.menu_row   = 1
             app.lb_scores  = highscore.load()
             app.lb_hi_name = app.lb_hi_score = None
             app.state      = LEADERBOARD
             return True
-        if MENU_SETTINGS_ITEM_RECT.collidepoint(pt):
+        if _m_set.collidepoint(pt):
             app.menu_row              = 2
             app.settings_row          = 0
             app.settings_return_state = MENU
