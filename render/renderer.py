@@ -454,26 +454,86 @@ def draw_popup(surf: pygame.Surface, count: int, timer: int) -> None:
     surf.blit(t, (BOARD_WIDTH // 2 - tw // 2, y))
 
 
-# ── touch controls overlay ───────────────────────────────────────────────────
+# ── touch controls ────────────────────────────────────────────────────────────
 
-def draw_touch_controls(surf: pygame.Surface) -> None:
-    """Overlay semi-transparent virtual D-pad buttons at the screen bottom."""
-    btn_h = 65
-    btn_y = SCREEN_HEIGHT - btn_h
+def _draw_drop_icon(surf: pygame.Surface,
+                    cx: int, cy: int, size: int, color: tuple) -> None:
+    """Down-arrow with base bar (hard-drop icon)."""
+    half = size // 2
+    sw   = max(2, size // 6)
+    sh   = size * 5 // 9
+    bar  = max(2, size // 10)
+    pygame.draw.rect(surf, color, (cx - sw // 2, cy - half, sw, sh))
+    pts = [(cx - half, cy - half + sh),
+           (cx + half, cy - half + sh),
+           (cx,        cy + half - bar - 1)]
+    pygame.draw.polygon(surf, color, pts)
+    pygame.draw.rect(surf, color, (cx - half, cy + half - bar, size, bar))
+
+
+def _draw_hold_icon(surf: pygame.Surface,
+                    cx: int, cy: int, size: int, color: tuple) -> None:
+    """H-shape icon for hold piece."""
+    bw   = max(2, size // 5)
+    half = size // 2
+    pygame.draw.rect(surf, color, (cx - half,      cy - half, bw,   size))
+    pygame.draw.rect(surf, color, (cx + half - bw, cy - half, bw,   size))
+    pygame.draw.rect(surf, color, (cx - half,      cy - bw // 2, size, bw))
+
+
+def draw_touch_controls(surf: pygame.Surface,
+                        zone_y: int, zone_h: int) -> None:
+    """Draw the touch-control button strip in the logical zone below the game."""
     btn_w = SCREEN_WIDTH // 6
-    labels = ['◄', '↺', '▼', '▲', '↻', '□']
 
-    bg = pygame.Surface((SCREEN_WIDTH, btn_h), pygame.SRCALPHA)
-    bg.fill((0, 0, 0, 150))
-    surf.blit(bg, (0, btn_y))
+    # Zone background
+    pygame.draw.rect(surf, (8, 8, 22), (0, zone_y, SCREEN_WIDTH, zone_h))
+    pygame.draw.line(surf, (70, 70, 110), (0, zone_y), (SCREEN_WIDTH, zone_y), 2)
 
-    for i, label in enumerate(labels):
-        w = btn_w if i < 5 else SCREEN_WIDTH - btn_w * 5
+    # Pressed-button highlighting
+    try:
+        from logic import touch_controls as _tc
+        pressed = set(_tc._held.values())
+    except Exception:
+        pressed = set()
+
+    icon_col  = (210, 215, 255)
+    label_col = (100, 100, 150)
+    press_col = (32, 32, 65)
+    div_col   = (45, 45, 75)
+
+    icon_sz  = max(14, min(int(btn_w * 0.65), int(zone_h * 0.40)))
+    label_sz = max(9,  zone_h // 28)
+
+    cy_icon  = zone_y + int(zone_h * 0.38)
+    cy_label = zone_y + zone_h - label_sz * 2 - 4
+
+    # Single-char icons: ◀ ↺  (blank = drawn) ↻ ▶
+    ICONS  = ['◀', '↺', None, None, '↻', '▶']
+    LABELS = ['LEFT', 'CCW', 'DROP', 'HOLD', 'CW', 'RIGHT']
+
+    for i in range(6):
         x = btn_w * i
-        pygame.draw.rect(surf, (70, 70, 90), (x, btn_y, w, btn_h), 1)
-        t = _font(20).render(label, True, (190, 190, 210))
-        surf.blit(t, (x + (w - t.get_width()) // 2,
-                      btn_y + (btn_h - t.get_height()) // 2))
+        w = btn_w if i < 5 else SCREEN_WIDTH - btn_w * 5
+        cx = x + w // 2
+
+        if i in pressed:
+            pygame.draw.rect(surf, press_col, (x, zone_y, w, zone_h))
+
+        if i > 0:
+            pygame.draw.line(surf, div_col, (x, zone_y + 8), (x, zone_y + zone_h - 8), 1)
+
+        icon = ICONS[i]
+        if icon is not None:
+            s = _font(icon_sz).render(icon, True, icon_col)
+            surf.blit(s, (cx - s.get_width() // 2, cy_icon - s.get_height() // 2))
+        elif LABELS[i] == 'DROP':
+            _draw_drop_icon(surf, cx, cy_icon, int(zone_h * 0.35), icon_col)
+        else:
+            _draw_hold_icon(surf, cx, cy_icon, int(zone_h * 0.30), icon_col)
+
+        lbl = _font(label_sz).render(LABELS[i], True, label_col)
+        surf.blit(lbl, (cx - lbl.get_width() // 2, cy_label))
 
 
 # ── sidebar ───────────────────────────────────────────────────────────────────

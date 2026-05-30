@@ -1,53 +1,54 @@
 """
-touch_controls.py — virtual D-pad for Android touch input.
+touch_controls.py — virtual gamepad for Android.
 
-Converts FINGERDOWN / FINGERUP / FINGERMOTION events into synthetic
-KEYDOWN / KEYUP events so input_handler.py works without any changes.
+Buttons live in the logical-canvas zone below the game board (y >= SCREEN_HEIGHT).
+Call init() once from main() after the display is set up.
 
-Button strip occupies the bottom 65 px of the 460×600 logical surface,
-semi-transparently overlaid on the two bottom board rows.
-
-Button layout (left → right):
-  ◄  move left     (K_LEFT,  DAS-repeatable)
+Layout (left → right):
+  ◀  move left     (K_LEFT,  DAS-repeatable)
   ↺  rotate CCW    (K_z,     single-fire)
-  ▼  soft drop     (K_DOWN,  repeatable)
-  ▲  hard drop     (K_SPACE, single-fire)
+  ↓  hard drop     (K_SPACE, single-fire)
+  ⏹  hold piece    (K_c,     single-fire)
   ↻  rotate CW     (K_UP,    single-fire)
-  □  hold piece    (K_c,     single-fire)
+  ▶  move right    (K_RIGHT, DAS-repeatable)
 """
 import pygame
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT
 
-BTN_H = 65
-BTN_Y = SCREEN_HEIGHT - BTN_H
-_W6   = SCREEN_WIDTH // 6        # 76 px per button
-
-# (rect, pygame_key, display_label)
-BUTTONS: list[tuple] = [
-    (pygame.Rect(0,       BTN_Y, _W6,                      BTN_H), pygame.K_LEFT,  '◄'),
-    (pygame.Rect(_W6,     BTN_Y, _W6,                      BTN_H), pygame.K_z,     '↺'),
-    (pygame.Rect(_W6 * 2, BTN_Y, _W6,                      BTN_H), pygame.K_DOWN,  '▼'),
-    (pygame.Rect(_W6 * 3, BTN_Y, _W6,                      BTN_H), pygame.K_SPACE, '▲'),
-    (pygame.Rect(_W6 * 4, BTN_Y, _W6,                      BTN_H), pygame.K_UP,    '↻'),
-    (pygame.Rect(_W6 * 5, BTN_Y, SCREEN_WIDTH - _W6 * 5,  BTN_H), pygame.K_c,     '□'),
+_KEYS = [
+    pygame.K_LEFT,   # ◀ move left
+    pygame.K_z,      # ↺ rotate CCW
+    pygame.K_SPACE,  # ↓ hard drop
+    pygame.K_c,      # ⏹ hold
+    pygame.K_UP,     # ↻ rotate CW
+    pygame.K_RIGHT,  # ▶ move right
 ]
+
+# (Rect, key) — populated by init(); rects are in logical canvas coordinates
+BUTTONS: list[tuple] = []
 
 # Active presses: finger_id → button index
 _held: dict[int, int] = {}
 
 
+def init(canvas_w: int, zone_y: int, zone_h: int) -> None:
+    """Set up button rects in logical canvas coordinates."""
+    global BUTTONS
+    btn_w = canvas_w // 6
+    BUTTONS = [
+        (pygame.Rect(btn_w * i,
+                     zone_y,
+                     btn_w if i < 5 else canvas_w - btn_w * 5,
+                     zone_h),
+         _KEYS[i])
+        for i in range(6)
+    ]
+
+
 def _hit(lx: int, ly: int) -> int | None:
-    for i, (rect, _, _) in enumerate(BUTTONS):
+    for i, (rect, _) in enumerate(BUTTONS):
         if rect.collidepoint(lx, ly):
             return i
     return None
-
-
-def _to_logical(event, dw: int, dh: int,
-                ox: int, oy: int, scale: float) -> tuple[int, int]:
-    """Map a normalised FINGER position to 460×600 logical coordinates."""
-    return (int((event.x * dw - ox) / scale),
-            int((event.y * dh - oy) / scale))
 
 
 def _post_key(evt_type: int, key: int) -> None:
@@ -58,9 +59,17 @@ def _post_key(evt_type: int, key: int) -> None:
 
 def handle(event, dw: int, dh: int,
            ox: int, oy: int, scale: float) -> None:
-    """Route one FINGER* event to synthetic keyboard events."""
+    """Route one FINGER* event to synthetic keyboard events.
+
+    Arguments mirror the old letterbox-based signature so input_handler.py
+    needs no changes.  With the new width-fill layout ox=oy=0.
+    """
+    if not BUTTONS:
+        return
+
     if event.type == pygame.FINGERDOWN:
-        lx, ly = _to_logical(event, dw, dh, ox, oy, scale)
+        lx = int((event.x * dw - ox) / scale)
+        ly = int((event.y * dh - oy) / scale)
         idx = _hit(lx, ly)
         if idx is not None:
             _held[event.finger_id] = idx
@@ -75,7 +84,8 @@ def handle(event, dw: int, dh: int,
         if event.finger_id not in _held:
             return
         prev = _held[event.finger_id]
-        lx, ly = _to_logical(event, dw, dh, ox, oy, scale)
+        lx = int((event.x * dw - ox) / scale)
+        ly = int((event.y * dh - oy) / scale)
         if not BUTTONS[prev][0].collidepoint(lx, ly):
             _post_key(pygame.KEYUP, BUTTONS[prev][1])
             del _held[event.finger_id]

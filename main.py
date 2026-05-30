@@ -156,14 +156,24 @@ def main():
     pygame.display.set_icon(_build_icon())
 
     _android = 'ANDROID_ARGUMENT' in os.environ
+    _touch_zone_h = 0
     if _android:
-        display       = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-        _dw, _dh      = display.get_size()
-        current_scale = min(_dw / SCREEN_WIDTH, _dh / SCREEN_HEIGHT)
-        _lw           = int(SCREEN_WIDTH  * current_scale)
-        _lh           = int(SCREEN_HEIGHT * current_scale)
-        _touch_ox     = (_dw - _lw) // 2
-        _touch_oy     = (_dh - _lh) // 2
+        display   = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        _dw, _dh  = display.get_size()
+        # Width-fill: game occupies top portion, touch zone gets the rest.
+        # Falls back to old letterbox behaviour on landscape/square screens.
+        _scale_w  = _dw / SCREEN_WIDTH
+        _scale_h  = _dh / SCREEN_HEIGHT
+        if _scale_w <= _scale_h:
+            current_scale = _scale_w
+            _touch_zone_h = max(0, int(_dh / current_scale) - SCREEN_HEIGHT)
+            _touch_ox, _touch_oy = 0, 0
+        else:
+            current_scale = min(_scale_w, _scale_h)
+            _lw = int(SCREEN_WIDTH  * current_scale)
+            _lh = int(SCREEN_HEIGHT * current_scale)
+            _touch_ox = (_dw - _lw) // 2
+            _touch_oy = (_dh - _lh) // 2
     else:
         current_scale = config.get_scale()
         display       = _make_display(current_scale)
@@ -180,7 +190,8 @@ def main():
         pygame.quit()
         sys.exit(1)
 
-    screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+    _canvas_h = SCREEN_HEIGHT + _touch_zone_h
+    screen = pygame.Surface((SCREEN_WIDTH, _canvas_h))
     pygame.display.set_caption("RETRIS")
     clock = pygame.time.Clock()
     music.start()
@@ -193,12 +204,16 @@ def main():
     app.updater = UpdateChecker(VERSION)
 
     if _android:
+        import touch_controls as _tc_init
+        if _touch_zone_h > 0:
+            _tc_init.init(SCREEN_WIDTH, SCREEN_HEIGHT, _touch_zone_h)
         app.touch_enabled = True
         app.touch_dw      = _dw
         app.touch_dh      = _dh
         app.touch_ox      = _touch_ox
         app.touch_oy      = _touch_oy
         app.touch_scale   = current_scale
+        app.touch_zone_h  = _touch_zone_h
 
     while True:
         dt = clock.tick(FPS)
@@ -442,19 +457,25 @@ def main():
         elif app.state == CONTROLS:
             draw_controls(app.screen)
 
-        # Touch D-pad overlay (Android only)
-        if app.touch_enabled:
-            draw_touch_controls(app.screen)
+        # Touch controls (Android only, drawn in the zone below the game)
+        if app.touch_enabled and app.touch_zone_h > 0:
+            draw_touch_controls(app.screen, SCREEN_HEIGHT, app.touch_zone_h)
 
         # Blit logical surface → physical display
         if app.touch_enabled:
-            lw = int(SCREEN_WIDTH  * app.current_scale)
-            lh = int(SCREEN_HEIGHT * app.current_scale)
-            app.display.fill((0, 0, 0))
-            app.display.blit(
-                pygame.transform.smoothscale(app.screen, (lw, lh)),
-                (app.touch_ox, app.touch_oy),
-            )
+            if app.touch_zone_h > 0:
+                # Width-fill: canvas exactly covers display — no letterbox needed
+                pygame.transform.smoothscale(
+                    app.screen, (app.touch_dw, app.touch_dh), app.display)
+            else:
+                # Landscape fallback: letterbox
+                lw = int(SCREEN_WIDTH  * app.current_scale)
+                lh = int(SCREEN_HEIGHT * app.current_scale)
+                app.display.fill((0, 0, 0))
+                app.display.blit(
+                    pygame.transform.smoothscale(app.screen, (lw, lh)),
+                    (app.touch_ox, app.touch_oy),
+                )
         elif app.current_scale == 1.0:
             app.display.blit(app.screen, (0, 0))
         else:

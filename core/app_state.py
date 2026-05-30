@@ -117,6 +117,7 @@ class AppState:
         self.touch_ox:      int   = 0       # letterbox x offset in display pixels
         self.touch_oy:      int   = 0       # letterbox y offset in display pixels
         self.touch_scale:   float = 1.0     # display→logical pixel scale factor
+        self.touch_zone_h:  int   = 0       # logical height of touch control zone below game
 
         # ── update checker ────────────────────────────────────────────────────
         self.updater = None   # UpdateChecker instance; set in main() after init
