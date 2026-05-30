@@ -170,6 +170,7 @@ def main():
             draw_mobile_popup, draw_mobile_level_up,
             draw_mobile_side_margins,
             draw_mobile_game_over, draw_mobile_pause,
+            draw_mobile_leaderboard,
         )
         _mobile = True
 
@@ -216,6 +217,11 @@ def main():
     app = AppState(display, screen, current_scale)
     app.best    = highscore.best()
     app.updater = UpdateChecker(VERSION)
+
+    if _mobile:
+        # Default ghost opacity 40% on mobile (vs 15% desktop)
+        if app.ghost_opacity_pct == 15:
+            app.ghost_opacity_pct = 40
 
     if _android:
         import touch_controls as _tc_init
@@ -549,7 +555,11 @@ def main():
                             gs.score, gs.lines, gs.level)
 
         elif app.state == LEADERBOARD:
-            draw_leaderboard(app.screen, app.lb_scores, app.lb_hi_name, app.lb_hi_score)
+            if _mobile:
+                draw_mobile_leaderboard(app.screen, app.lb_scores,
+                                        app.lb_hi_name, app.lb_hi_score)
+            else:
+                draw_leaderboard(app.screen, app.lb_scores, app.lb_hi_name, app.lb_hi_score)
 
         elif app.state == SETTINGS:
             draw_settings(app.screen, app.music_vol_pct, app.sfx_vol_pct,
@@ -568,7 +578,9 @@ def main():
         # Touch controls (Android only)
         if app.touch_enabled:
             if _mobile:
-                draw_mobile_touch_controls(app.screen, _BTN_ZONE_Y, M_BTN_H)
+                import touch_controls as _tc_mod
+                _tc_mod.set_keys_for_state(app.state)
+                draw_mobile_touch_controls(app.screen, _BTN_ZONE_Y, M_BTN_H, app.state)
             elif app.touch_zone_h > 0:
                 draw_touch_controls(app.screen, SCREEN_HEIGHT, app.touch_zone_h)
 
