@@ -419,7 +419,12 @@ def main():
                                           gs.stat_pieces, gs.stat_tetrises,
                                           gs.stat_tspins, gs.stat_combo, gs.stat_time)
                 elif app.state == GAME_OVER_ANIM:
-                    app.go_anim.draw(bsurf)
+                    # Centre desktop-sized animation on mobile board for correct sounds+visuals
+                    _anim = pygame.Surface((BOARD_WIDTH, BOARD_HEIGHT))
+                    _anim.fill((0, 0, 0))
+                    app.go_anim.draw(_anim)
+                    bsurf.blit(_anim, ((M_BOARD_W - BOARD_WIDTH)//2,
+                                       (M_BOARD_H - BOARD_HEIGHT)//2))
 
                 if gs.level_popup_timer > 0:
                     draw_mobile_level_up(bsurf, gs.level_popup_num,
