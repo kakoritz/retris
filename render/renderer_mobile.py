@@ -835,56 +835,55 @@ def draw_mobile_controls(surf):
     _draw_shadow_text(surf, "CONTROLS", 38, cx, 14, YELLOW, center_x=True)
     pygame.draw.line(surf, _BTN_BORDER, (16, 62), (SCREEN_WIDTH-16, 62), 1)
 
-    # ── Board zone diagram ────────────────────────────────────────────────────
-    # Draw a scaled-down board (same proportions as game board)
-    DW   = 300          # diagram width
-    DH   = 480          # diagram height (DW * 20/10 * scale)
-    DX   = cx - DW//2   # centred horizontally
-    DY   = 72           # below title
+    # ── Board zone diagram — full game board size ─────────────────────────────
+    DW   = SCREEN_WIDTH - 20    # 440px — nearly full width
+    DH   = int(DW * 2)          # 880px — approximate board proportions
+    DX   = (SCREEN_WIDTH - DW) // 2   # 10px margins
+    DY   = 72                   # below title
 
     # Board background
     pygame.draw.rect(surf, (18, 18, 42), (DX, DY, DW, DH))
 
-    # Grid lines (faint)
+    # Grid lines
     cell_w = DW // 10
     cell_h = DH // 20
     for gx in range(1, 10):
-        pygame.draw.line(surf, (30, 30, 60),
+        pygame.draw.line(surf, (32, 32, 65),
                          (DX + gx*cell_w, DY), (DX + gx*cell_w, DY+DH), 1)
     for gy in range(1, 20):
-        pygame.draw.line(surf, (30, 30, 60),
+        pygame.draw.line(surf, (32, 32, 65),
                          (DX, DY + gy*cell_h), (DX+DW, DY + gy*cell_h), 1)
 
-    # Zone dividers — red, bold
+    # Zone dividers — red, thick
     THIRD = DW // 3
     HALF  = int(DH * 0.55)
     RED   = (220, 40, 40)
-    # Vertical: left/right column dividers
-    pygame.draw.line(surf, RED, (DX + THIRD,       DY), (DX + THIRD,       DY+DH), 2)
-    pygame.draw.line(surf, RED, (DX + THIRD*2,     DY), (DX + THIRD*2,     DY+DH), 2)
-    # Horizontal: top/bottom split in centre column only
-    pygame.draw.line(surf, RED, (DX + THIRD, DY + HALF), (DX + THIRD*2, DY + HALF), 2)
-
-    # Board outline
+    pygame.draw.line(surf, RED, (DX + THIRD,   DY), (DX + THIRD,   DY+DH), 3)
+    pygame.draw.line(surf, RED, (DX + THIRD*2, DY), (DX + THIRD*2, DY+DH), 3)
+    pygame.draw.line(surf, RED, (DX + THIRD, DY + HALF), (DX + THIRD*2, DY + HALF), 3)
     pygame.draw.rect(surf, RED, (DX, DY, DW, DH), 2)
 
-    # Zone labels
-    def zlbl(text, zx, zy, zw, zh, size=13):
-        t = _font(size, bold=False).render(text, True, WHITE)
+    def zlbl(text, zx, zy, zw, zh, size=22):
+        t = _font(size).render(text, True, WHITE)
         surf.blit(t, (zx + zw//2 - t.get_width()//2,
                       zy + zh//2 - t.get_height()//2))
 
-    zlbl("◄  TAP",          DX,              DY,        THIRD,    DH,    12)
-    zlbl("MOVE LEFT",        DX,              DY + 18,   THIRD,    DH,    12)
-    zlbl("TAP  ►",           DX + THIRD*2,    DY,        THIRD,    DH,    12)
-    zlbl("MOVE RIGHT",       DX + THIRD*2,    DY + 18,   THIRD,    DH,    12)
-    zlbl("↻  TAP  ROTATE",  DX + THIRD,      DY,        THIRD,    HALF,  11)
-    zlbl("▼  TAP  STEP",    DX + THIRD,      DY + HALF, THIRD,    DH-HALF, 11)
+    zlbl("◄  TAP  MOVE LEFT",   DX,            DY,       THIRD,    DH,    22)
+    zlbl("TAP  MOVE RIGHT  ►",  DX + THIRD*2,  DY,       THIRD,    DH,    22)
+    zlbl("TAP  TO",             DX + THIRD,    DY,       THIRD,    HALF//2, 20)
+    zlbl("ROTATE ↻",            DX + THIRD,    DY + HALF//4, THIRD, HALF//2, 22)
+    zlbl("TAP",                 DX + THIRD,    DY + HALF,    THIRD, (DH-HALF)//2, 20)
+    zlbl("STEP DOWN ▼",         DX + THIRD,    DY + HALF + (DH-HALF)//4, THIRD, (DH-HALF)//2, 20)
 
-    # Swipe labels below diagram
-    surf.blit(_font(13).render("SWIPE ← CCW ROTATE   SWIPE → CW ROTATE   SWIPE ↓ DROP", True, RED),
-              (cx - _font(13).size("SWIPE  ↓  ANYWHERE  =  HARD  DROP")[0]//2,
-               DY + DH + 8))
+    # Swipe legend below diagram
+    y_leg = DY + DH + 12
+    for txt, col in [
+        ("SWIPE →  Rotate CW     SWIPE ←  Rotate CCW", RED),
+        ("SWIPE ↑  Rotate CW     SWIPE ↓  Hard Drop",   RED),
+    ]:
+        t = _font(18).render(txt, True, col)
+        surf.blit(t, (cx - t.get_width()//2, y_leg))
+        y_leg += 26
 
     # HOLD box label
     surf.blit(_font(12, bold=False).render(
