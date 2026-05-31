@@ -26,7 +26,7 @@ _STATE_KEYS = {
     'menu':           _KEYS_MENU,
     'game_over_anim': _KEYS_CONTINUE,
     'game_over':      _KEYS_CONTINUE,
-    'enter_name':     _KEYS_NAME,
+    'enter_name':     [pygame.K_RETURN],   # single CONFIRM button
     'leaderboard':    _KEYS_MENU_BTN,
     'settings':       _KEYS_MENU_BTN,
     'demo':           _KEYS_MENU_BTN,

@@ -40,6 +40,18 @@ from game_logic import (
 MUSIC_END       = pygame.USEREVENT + 1
 INITIALS_CHARS  = "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
 
+# ── name entry gesture tracker ────────────────────────────────────────────────
+_name_drag: dict = {}   # finger_id → (slot_idx, start_ly, last_cycle_y, steps_done)
+_NAME_CYCLE_PX = 30     # logical px per letter step (lower = more sensitive)
+
+
+def _cycle_initial(app, slot: int, direction: int) -> None:
+    """Cycle one initial up(+1) or down(-1) and play a click sound."""
+    chars = INITIALS_CHARS
+    cur   = chars.index(app.initials[slot]) if app.initials[slot] in chars else 0
+    app.initials[slot] = chars[(cur + direction) % len(chars)]
+    audio.play('move')
+
 # ── board gesture tracker ─────────────────────────────────────────────────────
 # Tap left half = move left | Tap right half = move right
 # Swipe left/up = rotate CCW/CW | Swipe right = rotate CW | Swipe down = drop
@@ -488,6 +500,47 @@ def handle_input(gs: GameState, app: AppState, dt: int) -> None:
                                 continue   # consumed
                         elif event.type == pygame.FINGERUP:
                             _settings_drag.pop(event.finger_id, None)
+                    except (ImportError, Exception):
+                        pass
+
+                # Name-entry slot gestures: swipe up/down cycles letter, tap selects slot
+                if app.state == ENTER_NAME and getattr(app, 'touch_enabled', False):
+                    try:
+                        from renderer_mobile import (M_NAME_SLOT_RECTS as _NSR,
+                                                      M_NAME_UP_RECTS   as _NUR,
+                                                      M_NAME_DN_RECTS   as _NDR)
+                        pt2 = (int(lx_f), int(ly_f))
+                        if event.type == pygame.FINGERDOWN:
+                            # ▲ arrow tap
+                            for i, r in enumerate(_NUR):
+                                if r.collidepoint(pt2):
+                                    app.ini_cursor = i; _cycle_initial(app, i, -1); break
+                            # ▼ arrow tap
+                            for i, r in enumerate(_NDR):
+                                if r.collidepoint(pt2):
+                                    app.ini_cursor = i; _cycle_initial(app, i, +1); break
+                            # Start swipe drag on slot
+                            for i, r in enumerate(_NSR):
+                                if r.collidepoint(pt2):
+                                    app.ini_cursor = i
+                                    _name_drag[event.finger_id] = (i, ly_f, ly_f, 0)
+                                    break
+                        elif event.type == pygame.FINGERMOTION:
+                            if event.finger_id in _name_drag:
+                                slot_i, start_y, last_y, steps = _name_drag[event.finger_id]
+                                dy = last_y - ly_f   # positive = swipe up = letter goes up
+                                if abs(dy) >= _NAME_CYCLE_PX:
+                                    direction = 1 if dy > 0 else -1
+                                    _cycle_initial(app, slot_i, direction)
+                                    _name_drag[event.finger_id] = (slot_i, start_y, ly_f, steps+1)
+                                continue
+                        elif event.type == pygame.FINGERUP:
+                            entry = _name_drag.pop(event.finger_id, None)
+                            if entry and entry[3] == 0:
+                                # Tap (no movement) on slot → just select it
+                                for i, r in enumerate(_NSR):
+                                    if r.collidepoint(pt2):
+                                        app.ini_cursor = i; break
                     except (ImportError, Exception):
                         pass
 

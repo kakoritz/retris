@@ -123,11 +123,7 @@ _LAY_PAUSE = [
     (pygame.K_DOWN,   'down_nav', 4, 'DOWN',   None),
 ]
 _LAY_NAME = [
-    (pygame.K_UP,     'up_nav',   3, 'UP',     None),
-    (pygame.K_LEFT,   'left',     1, 'LEFT',   None),
-    (pygame.K_RETURN, None,       7, 'OK',     'select'),
-    (pygame.K_RIGHT,  'right',    1, 'RIGHT',  None),
-    (pygame.K_DOWN,   'down_nav', 4, 'DOWN',   None),
+    (pygame.K_RETURN, None, 7, 'CONFIRM', 'select'),   # single confirm button
 ]
 _LAY_CONTINUE = [
     (pygame.K_SPACE, None, 7, 'CONTINUE', 'continue_flash'),
@@ -1081,47 +1077,90 @@ def draw_mobile_practice_overlay(surf, timer_ms: int) -> None:
 
 # ── mobile name entry ─────────────────────────────────────────────────────────
 
+# Name entry: tap zones for each letter slot and arrow buttons
+# Populated in draw_mobile_name_entry; used by input_handler for gesture routing
+M_NAME_SLOT_RECTS: list = []   # [Rect, Rect, Rect] — one per letter
+M_NAME_UP_RECTS:   list = []   # ▲ tap zones
+M_NAME_DN_RECTS:   list = []   # ▼ tap zones
+
+
 def draw_mobile_name_entry(surf, initials, cursor, blink_on, score, lines, level):
-    """Large centred initials on menu background — no border, no instruction text."""
+    """Slot-wheel name entry: ▲ tap/swipe ▼ arrows, tap letter to select, CONFIRM button."""
+    global M_NAME_SLOT_RECTS, M_NAME_UP_RECTS, M_NAME_DN_RECTS
     surf.fill(BG_COLOR)
     _draw_menu_bg(surf)
     _draw_scattered_pieces(surf)
 
-    from game_constants import VERSION
     cx = SCREEN_WIDTH // 2
-    cy = (M_CANVAS_H - M_BTN_H) // 2   # vertical centre of content area
+    # Slot layout — centred vertically in content area
+    SLOT = 110; GAP = 30; ARROW_H = 60; ARROW_GAP = 14
+    total_w = 3 * SLOT + 2 * GAP
+    sx      = cx - total_w // 2
+    # Centre the whole block (title + slots + arrows) vertically
+    block_h = 36 + 16 + 28 + 16 + ARROW_H + ARROW_GAP + SLOT + ARROW_GAP + ARROW_H
+    top_y   = (M_CANVAS_H - M_BTN_H - block_h) // 2
 
-    # "NEW HIGH SCORE!" flashing
-    if blink_on:
-        h = (pygame.time.get_ticks() / 300) % 1.0
-        r2, g2, b2 = colorsys.hsv_to_rgb(h, 1.0, 1.0)
-        title_col = (int(r2*255), int(g2*255), int(b2*255))
-    else:
-        title_col = YELLOW
-    _draw_shadow_text(surf, "NEW  HIGH  SCORE!", 36, cx, cy - 200, title_col, center_x=True)
+    # "NEW HIGH SCORE!" title
+    h = (pygame.time.get_ticks() / 300) % 1.0
+    r2, g2, b2 = colorsys.hsv_to_rgb(h, 1.0, 1.0)
+    title_col = (int(r2*255), int(g2*255), int(b2*255))
+    _draw_shadow_text(surf, "NEW  HIGH  SCORE!", 36, cx, top_y, title_col, center_x=True)
 
     # Score
-    t = _font(24).render(f"SCORE  {str(score).zfill(7)}", True, WHITE)
-    surf.blit(t, (cx - t.get_width()//2, cy - 148))
+    sc_t = _font(24).render(f"SCORE  {str(score).zfill(7)}", True, WHITE)
+    surf.blit(sc_t, (cx - sc_t.get_width()//2, top_y + 48))
 
-    # Three initial slots — very large, dead centre
-    SLOT = 90
-    GAP  = 24
-    total_w = 3 * SLOT + 2 * GAP
-    sx = cx - total_w // 2
+    # Hint
+    hint = _font(16, bold=False).render("SWIPE  ▲▼  OR  TAP  ARROWS  TO  CHANGE  LETTER", True, _LBL_COL)
+    surf.blit(hint, (cx - hint.get_width()//2, top_y + 84))
+
+    slot_y   = top_y + 36 + 16 + 28 + 16 + ARROW_H + ARROW_GAP
+    arrow_up_y  = slot_y - ARROW_GAP - ARROW_H
+    arrow_dn_y  = slot_y + SLOT + ARROW_GAP
+
+    M_NAME_SLOT_RECTS.clear(); M_NAME_UP_RECTS.clear(); M_NAME_DN_RECTS.clear()
 
     for i, ch in enumerate(initials):
         x      = sx + i * (SLOT + GAP)
+        cx_box = x + SLOT // 2
         active = (i == cursor)
+
+        # ▲ arrow button
+        up_rect = pygame.Rect(x, arrow_up_y, SLOT, ARROW_H)
+        M_NAME_UP_RECTS.append(up_rect)
+        pygame.draw.rect(surf, (20, 40, 10) if active else _BTN_BG, up_rect, border_radius=8)
+        pygame.draw.rect(surf, YELLOW if active else _BTN_BORDER, up_rect, 2, border_radius=8)
+        t_up = _font(32).render("▲", True, YELLOW if active else _LBL_COL)
+        surf.blit(t_up, (cx_box - t_up.get_width()//2, arrow_up_y + ARROW_H//2 - t_up.get_height()//2))
+
+        # Letter slot
+        slot_rect = pygame.Rect(x, slot_y, SLOT, SLOT)
+        M_NAME_SLOT_RECTS.append(slot_rect)
         if active:
-            h2 = (pygame.time.get_ticks() / 600) % 1.0
+            h2 = (pygame.time.get_ticks() / 500) % 1.0
             r2, g2, b2 = colorsys.hsv_to_rgb(h2, 1.0, 1.0)
             border_col = (int(r2*255), int(g2*255), int(b2*255))
+            pygame.draw.rect(surf, border_col, slot_rect.inflate(4, 4), 3, border_radius=10)
         else:
             border_col = _BTN_BORDER
-        pygame.draw.rect(surf, _BTN_BG, (x, cy - 60, SLOT, SLOT), border_radius=8)
-        pygame.draw.rect(surf, border_col, (x, cy - 60, SLOT, SLOT), 2, border_radius=8)
+        pygame.draw.rect(surf, _BTN_BG, slot_rect, border_radius=8)
+        pygame.draw.rect(surf, border_col, slot_rect, 2, border_radius=8)
+        # Show prev/next letters dimmed for slot-wheel feel
+        for off, alpha_v in [(-1, 60), (1, 60)]:
+            idx = (ord(ch) - ord('A') + off) % 27
+            ghost_ch = chr(ord('A') + idx) if idx < 26 else ' '
+            gt = _font(28).render(ghost_ch, True, (180, 180, 180))
+            gt.set_alpha(alpha_v)
+            surf.blit(gt, (cx_box - gt.get_width()//2,
+                           slot_y + SLOT//2 - gt.get_height()//2 + off*48))
         if (not active) or blink_on:
-            t = _font(64).render(ch, True, YELLOW if active else WHITE)
-            surf.blit(t, (x + SLOT//2 - t.get_width()//2,
-                          cy - 60 + SLOT//2 - t.get_height()//2))
+            lt = _font(72).render(ch, True, YELLOW if active else WHITE)
+            surf.blit(lt, (cx_box - lt.get_width()//2, slot_y + SLOT//2 - lt.get_height()//2))
+
+        # ▼ arrow button
+        dn_rect = pygame.Rect(x, arrow_dn_y, SLOT, ARROW_H)
+        M_NAME_DN_RECTS.append(dn_rect)
+        pygame.draw.rect(surf, (20, 40, 10) if active else _BTN_BG, dn_rect, border_radius=8)
+        pygame.draw.rect(surf, YELLOW if active else _BTN_BORDER, dn_rect, 2, border_radius=8)
+        t_dn = _font(32).render("▼", True, YELLOW if active else _LBL_COL)
+        surf.blit(t_dn, (cx_box - t_dn.get_width()//2, arrow_dn_y + ARROW_H//2 - t_dn.get_height()//2))
