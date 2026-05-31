@@ -223,9 +223,9 @@ def main():
     app.updater = UpdateChecker(VERSION)
 
     if _mobile:
-        # Default ghost opacity 40% on mobile (vs 15% desktop)
+        # Default ghost opacity 100% on mobile (maps to 110 alpha — same feel as old 50%)
         if app.ghost_opacity_pct == 15:
-            app.ghost_opacity_pct = 40
+            app.ghost_opacity_pct = 100
         # Default shadow type 2 (dotted outline) on mobile
         app.ghost_shadow_type = 2
 

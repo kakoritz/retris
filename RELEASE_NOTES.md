@@ -2,6 +2,29 @@
 
 ---
 
+## v2.4.x — Android Mobile Polish
+*2026-05-30*
+
+### Added
+- **Rainbow RETRIS logo** — unified left-to-right hue wave across all blocks, slowly drifting
+- **Dotted outline ghost** — shadow type 2: dashed white border per block, no fill (new mobile default)
+- **Ghost shadow type system** — `ghost_shadow_type` extensible; type 1=classic, type 2=dotted
+- **Settings slider drag** — FINGERMOTION on slider bars updates value live
+- **Arc gesture** — semicircle path detects CW/CCW rotation
+- **Menu sounds** — every tap, navigation, confirm, and pause fires SFX
+- **Pause order** — CONTINUE → QUIT TO MENU → SETTINGS
+- **Presplash** — RETRIS logo + scattered pieces shows on cold launch
+
+### Fixed
+- **demo_active not reset** on new game — eliminated mid-game random MENU jump
+- **Ghost desktop rects** (`INGAME_GEAR_RECT`, `PAUSE_QUIT_RECT`, `BACK_RECT`) removed from mobile — all overlapped the play board
+- **Click grace period** — prevents FINGERUP race conditions after state changes
+- **First piece drifts right** — 500ms gesture grace after game start
+- **Game-over overlay** — transparent like pause, no black square
+- **RETRIS logo clipping** — cell=11 fits 460px canvas exactly
+
+---
+
 ## v2.2.0 — Full Mobile UI Redesign
 *2026-05-30*
 

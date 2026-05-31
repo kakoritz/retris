@@ -413,6 +413,23 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
     return False
 
 
+_settings_drag: dict = {}  # finger_id → slider_key being dragged
+
+
+def _apply_slider_pct(key: str, pct: int, app) -> None:
+    """Update a settings slider value and apply it live."""
+    import music_game as _mg, music as _mu, config as _cfg
+    if key == 'music':
+        app.music_vol_pct = pct
+        _mg.set_volume(pct / 100)
+        _mu.set_volume(pct / 100)
+    elif key == 'sfx':
+        app.sfx_vol_pct = pct
+    elif key == 'ghost':
+        app.ghost_opacity_pct = pct
+        _cfg.set_ghost_opacity(pct)
+
+
 def handle_input(gs: GameState, app: AppState, dt: int) -> None:
     """Process all pending pygame events and run DAS auto-repeat."""
     global _rotate_mode, _rotate_last_ms
@@ -433,10 +450,34 @@ def handle_input(gs: GameState, app: AppState, dt: int) -> None:
         # FINGER events — check UI buttons first, then gestures, then button bar
         if event.type in (pygame.FINGERDOWN, pygame.FINGERUP, pygame.FINGERMOTION):
             if app.touch_enabled:
+                lx_f = (event.x * app.touch_dw - app.touch_ox) / app.touch_scale
+                ly_f = (event.y * app.touch_dh - app.touch_oy) / app.touch_scale
+
+                # Settings slider drag (FINGERDOWN + FINGERMOTION + FINGERUP)
+                if app.state == SETTINGS and getattr(app, 'touch_enabled', False):
+                    try:
+                        from renderer_mobile import _MS_SLIDERS
+                        if event.type == pygame.FINGERDOWN:
+                            for skey, srect in _MS_SLIDERS.items():
+                                if srect.collidepoint(lx_f, ly_f):
+                                    _settings_drag[event.finger_id] = skey
+                                    pct = max(0, min(100, int((lx_f - srect.x) / srect.width * 100)))
+                                    _apply_slider_pct(skey, pct, app)
+                                    break
+                        elif event.type == pygame.FINGERMOTION:
+                            if event.finger_id in _settings_drag:
+                                skey = _settings_drag[event.finger_id]
+                                srect = _MS_SLIDERS[skey]
+                                pct = max(0, min(100, int((lx_f - srect.x) / srect.width * 100)))
+                                _apply_slider_pct(skey, pct, app)
+                                continue   # consumed — don't pass to other handlers
+                        elif event.type == pygame.FINGERUP:
+                            _settings_drag.pop(event.finger_id, None)
+                    except (ImportError, Exception):
+                        pass
+
                 if event.type == pygame.FINGERDOWN:
-                    lx = (event.x * app.touch_dw - app.touch_ox) / app.touch_scale
-                    ly = (event.y * app.touch_dh - app.touch_oy) / app.touch_scale
-                    if _handle_click(lx, ly, gs, app):
+                    if _handle_click(lx_f, ly_f, gs, app):
                         continue
                 # Board gestures (tap-rotate, swipe-drop)
                 _handle_board_gesture(event, app)

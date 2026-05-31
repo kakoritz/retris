@@ -320,7 +320,7 @@ def draw_mobile_ghost(surf, board, piece, opacity_pct=40, palette_phase=0,
         # Colour: white at medium opacity
         dot_col = (210, 210, 210)
         dot_surf = pygame.Surface((1, 1), pygame.SRCALPHA)  # dummy for alpha blending
-        alpha    = int(opacity_pct * 2.2)   # scale 0-100 → 0-220
+        alpha    = int(opacity_pct * 1.1)   # scale: 100 → 110 (softer; old 50% feel)
         col      = (*dot_col, min(255, alpha))
         for ri, row in enumerate(piece.shape):
             for ci, val in enumerate(row):
