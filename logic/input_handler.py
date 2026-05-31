@@ -238,11 +238,13 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
             _set_click_grace()
             return True
         if _m_lb.collidepoint(pt):
-            audio.play('move')
-            app.menu_row   = 1
-            app.lb_scores  = highscore.load()
-            app.lb_hi_name = app.lb_hi_score = None
-            app.state      = LEADERBOARD; _set_click_grace()
+            import sys as _sys_ih2
+            if _sys_ih2.platform != "emscripten":
+                audio.play('move')
+                app.menu_row   = 1
+                app.lb_scores  = highscore.load()
+                app.lb_hi_name = app.lb_hi_score = None
+                app.state      = LEADERBOARD; _set_click_grace()
             return True
         if _m_set.collidepoint(pt):
             audio.play('move')
@@ -597,17 +599,21 @@ def handle_input(gs: GameState, app: AppState, dt: int) -> None:
 
         # ── MENU ─────────────────────────────────────────────────────────────
         if app.state == MENU:
+            import sys as _sys_ih
+            _web_menu = _sys_ih.platform == "emscripten"
+            _menu_len = 2 if _web_menu else 3
             app.menu_idle_timer = 0
             if event.key in (pygame.K_UP, pygame.K_DOWN):
-                app.menu_row = (app.menu_row + (1 if event.key == pygame.K_DOWN else -1)) % 3
-                import audio as _aud; _aud.play('move')   # navigation click
+                app.menu_row = (app.menu_row + (1 if event.key == pygame.K_DOWN else -1)) % _menu_len
+                import audio as _aud; _aud.play('move')
             elif event.key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP_ENTER):
-                import audio as _aud; _aud.play('lock')   # confirm sound
-                if app.menu_row == 1:
+                import audio as _aud; _aud.play('lock')
+                # on web: row 0=START, row 1=SETTINGS; desktop: row 1=LEADERBOARD, row 2=SETTINGS
+                if not _web_menu and app.menu_row == 1:
                     app.lb_scores  = highscore.load()
                     app.lb_hi_name = app.lb_hi_score = None
                     app.state      = LEADERBOARD
-                elif app.menu_row == 2:
+                elif (_web_menu and app.menu_row == 1) or (not _web_menu and app.menu_row == 2):
                     app.settings_row          = 0
                     app.settings_return_state = MENU
                     app.state = SETTINGS

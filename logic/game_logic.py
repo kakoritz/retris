@@ -109,7 +109,9 @@ def end_game(gs: GameState, app: AppState) -> None:
     gs.stat_time = (pygame.time.get_ticks() - gs.stat_start_ms) / 1000.0
     music.fadeout(1200)
     app.go_anim.reset()
-    if highscore.qualifies(gs.score):
+    import sys as _sys_gl
+    _web = _sys_gl.platform == "emscripten"
+    if not _web and highscore.qualifies(gs.score):
         app.initials        = ['A', 'A', 'A']
         app.ini_cursor      = 0
         app.post_anim_state = ENTER_NAME
