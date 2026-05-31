@@ -362,18 +362,24 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
             try:
                 from renderer_mobile import _MS_SLIDERS, _MS_DAS_BTNS, _MS_CONTROLS_BTN
                 import config as _cfg
-                # Slider taps
-                for key, rect in _MS_SLIDERS.items():
-                    if rect.collidepoint(pt):
-                        pct = max(0, min(100, int((lx - rect.x) / rect.width * 100)))
-                        if key == 'music':
-                            app.music_vol_pct = pct
-                            music_game.set_volume(pct / 100)
-                        elif key == 'sfx':
-                            app.sfx_vol_pct = pct
-                        elif key == 'ghost':
-                            app.ghost_opacity_pct = pct
-                            _cfg.set_ghost_opacity(pct)
+                # Slider taps — use row rect for easier targeting
+                from renderer_mobile import _MS_SLIDER_ROWS as _MSRR
+                _row_r = _MSRR if _MSRR else _MS_SLIDERS
+                for key, rrect in _row_r.items():
+                    if rrect.collidepoint(pt):
+                        srect = _MS_SLIDERS.get(key)
+                        if srect:
+                            _mx = 200 if key == 'ghost' else 100
+                            pct = max(0, min(_mx, int((lx - srect.x) / srect.width * _mx)))
+                            _apply_slider_pct(key, pct, app)
+                        return True
+                # Game speed buttons
+                from renderer_mobile import _MS_SPEED_BTNS as _MSSB
+                for box, speed_key in _MSSB:
+                    if box.collidepoint(pt):
+                        app.game_speed = speed_key
+                        app.game_speed_mult = _cfg.GAME_SPEED_MULT[speed_key]
+                        _cfg.set_game_speed(speed_key)
                         return True
                 # DAS buttons
                 for box, preset_key in _MS_DAS_BTNS:
@@ -417,14 +423,16 @@ _settings_drag: dict = {}  # finger_id → slider_key being dragged
 
 
 def _apply_slider_pct(key: str, pct: int, app) -> None:
-    """Update a settings slider value and apply it live."""
+    """Update a settings slider value, apply it live, and persist to config."""
     import music_game as _mg, music as _mu, config as _cfg
     if key == 'music':
         app.music_vol_pct = pct
         _mg.set_volume(pct / 100)
         _mu.set_volume(pct / 100)
+        _cfg.set_music_vol(pct)
     elif key == 'sfx':
         app.sfx_vol_pct = pct
+        _cfg.set_sfx_vol(pct)
     elif key == 'ghost':
         app.ghost_opacity_pct = pct
         _cfg.set_ghost_opacity(pct)
@@ -453,24 +461,31 @@ def handle_input(gs: GameState, app: AppState, dt: int) -> None:
                 lx_f = (event.x * app.touch_dw - app.touch_ox) / app.touch_scale
                 ly_f = (event.y * app.touch_dh - app.touch_oy) / app.touch_scale
 
-                # Settings slider drag (FINGERDOWN + FINGERMOTION + FINGERUP)
+                # Settings slider drag — full row is touch target, supports swipe
                 if app.state == SETTINGS and getattr(app, 'touch_enabled', False):
                     try:
-                        from renderer_mobile import _MS_SLIDERS
+                        from renderer_mobile import _MS_SLIDERS, _MS_SLIDER_ROWS
+                        # Use wider row rects for initial touch detection
+                        _row_rects = _MS_SLIDER_ROWS if _MS_SLIDER_ROWS else _MS_SLIDERS
                         if event.type == pygame.FINGERDOWN:
-                            for skey, srect in _MS_SLIDERS.items():
-                                if srect.collidepoint(lx_f, ly_f):
+                            for skey, rrect in _row_rects.items():
+                                if rrect.collidepoint(lx_f, ly_f):
                                     _settings_drag[event.finger_id] = skey
-                                    pct = max(0, min(100, int((lx_f - srect.x) / srect.width * 100)))
-                                    _apply_slider_pct(skey, pct, app)
+                                    srect = _MS_SLIDERS.get(skey)
+                                    if srect:
+                                        _mx = 200 if skey == 'ghost' else 100
+                                        pct = max(0, min(_mx, int((lx_f - srect.x) / srect.width * _mx)))
+                                        _apply_slider_pct(skey, pct, app)
                                     break
                         elif event.type == pygame.FINGERMOTION:
                             if event.finger_id in _settings_drag:
                                 skey = _settings_drag[event.finger_id]
-                                srect = _MS_SLIDERS[skey]
-                                pct = max(0, min(100, int((lx_f - srect.x) / srect.width * 100)))
-                                _apply_slider_pct(skey, pct, app)
-                                continue   # consumed — don't pass to other handlers
+                                srect = _MS_SLIDERS.get(skey)
+                                if srect:
+                                    _mx = 200 if skey == 'ghost' else 100
+                                    pct = max(0, min(_mx, int((lx_f - srect.x) / srect.width * _mx)))
+                                    _apply_slider_pct(skey, pct, app)
+                                continue   # consumed
                         elif event.type == pygame.FINGERUP:
                             _settings_drag.pop(event.finger_id, None)
                     except (ImportError, Exception):

@@ -842,9 +842,11 @@ def draw_mobile_menu(surf, blink_on, updater=None, menu_row=0):
 # ── mobile settings ───────────────────────────────────────────────────────────
 
 # Tap-zone rects for mobile settings (logical canvas coords)
-_MS_SLIDERS = {}   # populated at first draw
-_MS_DAS_BTNS: list = []
-_MS_CONTROLS_BTN = pygame.Rect(20, 400, 420, 64)
+_MS_SLIDERS      = {}    # slider track rects, populated at draw
+_MS_SLIDER_ROWS  = {}    # full-row touch rects (easier to tap), populated at draw
+_MS_SPEED_BTNS:  list = []
+_MS_DAS_BTNS:    list = []
+_MS_CONTROLS_BTN = pygame.Rect(20, 85+90*3+130, 420, 60)  # positioned dynamically
 
 _DAS_LABELS  = ['SLOW', 'NORM', 'FAST', 'FASTER']
 _DAS_PRESETS = ['slow', 'normal', 'fast', 'instant']
@@ -873,8 +875,9 @@ def _slider_row(surf, label, pct, y, row_h=90):
 
 
 def draw_mobile_settings(surf, music_vol, sfx_vol, ghost_opacity,
-                          das_preset, settings_row=0):
-    global _MS_SLIDERS, _MS_DAS_BTNS
+                          das_preset, settings_row=0,
+                          game_speed='fast'):
+    global _MS_SLIDERS, _MS_SLIDER_ROWS, _MS_SPEED_BTNS, _MS_DAS_BTNS
     surf.fill(BG_COLOR)
     _draw_menu_bg(surf)
     _draw_scattered_pieces(surf)
@@ -883,23 +886,67 @@ def draw_mobile_settings(surf, music_vol, sfx_vol, ghost_opacity,
     _draw_shadow_text(surf, "SETTINGS", 38, cx, 20, YELLOW, center_x=True)
     pygame.draw.line(surf, _BTN_BORDER, (20, 72), (SCREEN_WIDTH-20, 72), 1)
 
-    # Volume / opacity sliders
-    _MS_SLIDERS['music'] = _slider_row(surf, "MUSIC  VOLUME", music_vol, 85)
-    _MS_SLIDERS['sfx']   = _slider_row(surf, "SFX  VOLUME",   sfx_vol,  185)
-    _MS_SLIDERS['ghost'] = _slider_row(surf, "GHOST  OPACITY", ghost_opacity, 285)
+    ROW_H = 90
 
-    pygame.draw.line(surf, _BTN_BORDER, (20, 388), (SCREEN_WIDTH-20, 388), 1)
+    def _row(label, pct, y, max_pct=100):
+        """Draw a slider row, return (track_rect, row_rect)."""
+        lbl_t = _font(22).render(label, True, BORDER_COLOR)
+        surf.blit(lbl_t, (20, y + 6))
+        pct_txt = _font(20).render(f"{pct}%", True, YELLOW)
+        surf.blit(pct_txt, (SCREEN_WIDTH - 20 - pct_txt.get_width(), y + 8))
+        sx, sw, sh = 20, 420, 20
+        sy = y + ROW_H - 30
+        pygame.draw.rect(surf, (30, 30, 60), (sx, sy, sw, sh), border_radius=10)
+        fill_w = max(0, int(sw * pct / max_pct))
+        if fill_w > 4:
+            pygame.draw.rect(surf, YELLOW, (sx, sy, fill_w, sh), border_radius=10)
+        pygame.draw.rect(surf, _BTN_BORDER, (sx, sy, sw, sh), 1, border_radius=10)
+        # Thumb
+        thumb_x = sx + fill_w
+        pygame.draw.circle(surf, WHITE, (max(sx+10, min(sx+sw-10, thumb_x)), sy+sh//2), 14)
+        track = pygame.Rect(sx, sy-10, sw, sh+20)
+        row   = pygame.Rect(0, y, SCREEN_WIDTH, ROW_H)  # full-width row touch target
+        return track, row
 
-    # DAS hidden from mobile settings — gesture controls don't need it
+    _MS_SLIDERS.clear(); _MS_SLIDER_ROWS.clear()
+    tr, rr = _row("MUSIC  VOLUME",  music_vol,    85)
+    _MS_SLIDERS['music']     = tr; _MS_SLIDER_ROWS['music']     = rr
+    tr, rr = _row("SFX  VOLUME",    sfx_vol,      85 + ROW_H)
+    _MS_SLIDERS['sfx']       = tr; _MS_SLIDER_ROWS['sfx']       = rr
+    tr, rr = _row("GHOST  OPACITY", ghost_opacity, 85 + ROW_H*2, max_pct=200)
+    _MS_SLIDERS['ghost']     = tr; _MS_SLIDER_ROWS['ghost']      = rr
+
+    pygame.draw.line(surf, _BTN_BORDER, (20, 85+ROW_H*3), (SCREEN_WIDTH-20, 85+ROW_H*3), 1)
+
+    # Game speed — 3 option buttons
+    surf.blit(_font(22).render("GAME  SPEED", True, BORDER_COLOR), (20, 85+ROW_H*3+8))
+    _MS_SPEED_BTNS.clear()
+    speed_labels = [('slow','SLOW'),('medium','MED'),('fast','FAST')]
+    btn_w = (SCREEN_WIDTH - 40) // 3
+    for i, (skey, slbl) in enumerate(speed_labels):
+        bx = 20 + i * btn_w
+        box = pygame.Rect(bx+3, 85+ROW_H*3+40, btn_w-6, 56)
+        active = (skey == game_speed)
+        pygame.draw.rect(surf, YELLOW if active else _BTN_BG, box, border_radius=8)
+        pygame.draw.rect(surf, _BTN_BORDER, box, 1, border_radius=8)
+        tc = BG_COLOR if active else (150,150,150)
+        t = _font(20).render(slbl, True, tc)
+        surf.blit(t, (box.centerx - t.get_width()//2, box.centery - t.get_height()//2))
+        _MS_SPEED_BTNS.append((box, skey))
+
+    # Speed hint
+    hints = {'slow': '0.5×  — Mobile default', 'medium': '0.75×', 'fast': '1.0×  — PC default'}
+    hint_t = _font(14, bold=False).render(hints.get(game_speed,''), True, _LBL_COL)
+    surf.blit(hint_t, (cx - hint_t.get_width()//2, 85+ROW_H*3+104))
+
+    # DAS hidden
     _MS_DAS_BTNS.clear()
 
-    # TUTORIAL — full-width yellow button
-    tut_rect = pygame.Rect(20, 400, SCREEN_WIDTH - 40, 64)
-    pygame.draw.rect(surf, (20, 55, 10), tut_rect, border_radius=10)
-    pygame.draw.rect(surf, YELLOW, tut_rect, 2, border_radius=10)
-    t = _font(28).render("▶  TUTORIAL  /  CONTROLS", True, YELLOW)
-    surf.blit(t, (tut_rect.centerx - t.get_width()//2,
-                  tut_rect.centery - t.get_height()//2))
+    pygame.draw.line(surf, _BTN_BORDER, (20, 85+ROW_H*3+120), (SCREEN_WIDTH-20, 85+ROW_H*3+120), 1)
+
+    # TUTORIAL button
+    t = _font(24).render("▶  TUTORIAL  /  CONTROLS", True, YELLOW)
+    surf.blit(t, (20, 85+ROW_H*3+130))
 
 
 # ── mobile controls ───────────────────────────────────────────────────────────

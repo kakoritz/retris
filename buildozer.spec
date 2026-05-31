@@ -7,7 +7,7 @@ source.include_exts = py,json
 source.exclude_dirs = tests, .git, .claude, __pycache__, .venv, custom_recipes
 
 <<<<<<< HEAD
-version         = 2.4.14
+version         = 2.5.0
 =======
 version         = 2.2.0
 >>>>>>> origin/main

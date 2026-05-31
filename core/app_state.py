@@ -47,9 +47,17 @@ class AppState:
         self.state: str = MENU
 
         # ── audio / volume ────────────────────────────────────────────────────
-        self.music_vol_pct:     int = 40
-        self.sfx_vol_pct:       int = 100
+        self.music_vol_pct:     int = config.get_music_vol()
+        self.sfx_vol_pct:       int = config.get_sfx_vol()
         self.ghost_opacity_pct: int = config.get_ghost_opacity()
+
+        # ── game speed ────────────────────────────────────────────────────────
+        _speed               = config.get_game_speed()
+        self.game_speed:     str   = _speed
+        self.game_speed_mult: float = config.GAME_SPEED_MULT[_speed]
+
+        # ── ghost shadow type ─────────────────────────────────────────────────
+        self.ghost_shadow_type: int = 1
 
         # ── settings screen ───────────────────────────────────────────────────
         self.settings_row:          int = 0

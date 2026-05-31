@@ -215,6 +215,9 @@ def main():
     clock = pygame.time.Clock()
     music.start()
     audio.prime()
+    # Apply saved volumes on startup
+    music.set_volume(app.music_vol_pct / 100)
+    music_game.set_volume(app.music_vol_pct / 100)
 
     gs  = GameState()
     gs.reset()
@@ -223,11 +226,16 @@ def main():
     app.updater = UpdateChecker(VERSION)
 
     if _mobile:
-        # Default ghost opacity 100% on mobile (maps to 110 alpha — same feel as old 50%)
+        # Mobile defaults for ghost
         if app.ghost_opacity_pct == 15:
-            app.ghost_opacity_pct = 100
-        # Default shadow type 2 (dotted outline) on mobile
-        app.ghost_shadow_type = 2
+            app.ghost_opacity_pct = 100   # 100 → alpha 110, subtle dotted outline
+        app.ghost_shadow_type = 2         # dotted outline
+        # Mobile default game speed = slow (0.5× fall speed)
+        import config as _cfg
+        if app.game_speed == "fast":      # hasn't been saved before — set mobile default
+            app.game_speed = "slow"
+            app.game_speed_mult = _cfg.GAME_SPEED_MULT["slow"]
+            _cfg.set_game_speed("slow")
 
     if _android:
         import touch_controls as _tc_init
@@ -267,7 +275,8 @@ def main():
             grounded = not gs.board.is_valid(gs.current, dy=1)
 
             gs.fall_timer += dt
-            if gs.fall_timer >= fall_speed(gs.speed_tier):
+            _fall_delay = int(fall_speed(gs.speed_tier) * getattr(app, 'game_speed_mult', 1.0))
+            if gs.fall_timer >= _fall_delay:
                 gs.fall_timer = 0
                 if not grounded:
                     if gs.level >= GRAVITY_20G_LEVEL:
@@ -601,7 +610,8 @@ def main():
             if _mobile:
                 draw_mobile_settings(app.screen, app.music_vol_pct, app.sfx_vol_pct,
                                      app.ghost_opacity_pct, app.das_preset,
-                                     app.settings_row)
+                                     app.settings_row,
+                                     game_speed=getattr(app, 'game_speed', 'fast'))
             else:
                 draw_settings(app.screen, app.music_vol_pct, app.sfx_vol_pct,
                               app.settings_row, music.is_muted(), app.current_scale,

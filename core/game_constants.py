@@ -1,11 +1,7 @@
 # game_constants.py — gameplay-tuning constants extracted from main.py
 # No Pygame dependency; safe to import in unit tests without a display.
 
-<<<<<<< HEAD
-VERSION = "2.4.14"
-=======
-VERSION = "2.2.0"
->>>>>>> origin/main
+VERSION = "2.5.0"
 
 # ── DAS (delayed auto-shift) ──────────────────────────────────────────────────
 DAS_DELAY  = 170   # ms before auto-repeat starts
