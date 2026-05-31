@@ -254,8 +254,12 @@ async def main():
         app.touch_scale   = current_scale
         app.touch_zone_h  = _touch_zone_h
 
+    import sys as _sys_web
+    _is_web = _sys_web.platform == "emscripten"
+
     while True:
-        dt = clock.tick(FPS)
+        # On web (Pygbag) don't block — browser controls timing
+        dt = clock.tick(0) if _is_web else clock.tick(FPS)
 
         app.blink_timer += dt
         if app.blink_timer >= 500:
@@ -676,7 +680,6 @@ async def main():
 import sys as _sys_entry, asyncio as _aio_entry
 
 if _sys_entry.platform == "emscripten":
-    # Pygbag entry point — browser WASM
     _aio_entry.run(main())
 elif __name__ == "__main__":
     from crash_handler import run_with_crash_handler
