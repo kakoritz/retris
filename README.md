@@ -94,9 +94,13 @@ persisted across sessions in `config.json`. Ghost-piece opacity is also persiste
 - Music Preview screen — audition all 10 tiers live from the menu
 - Settings screen — music volume, SFX volume, display scale, ghost opacity
 - **3-platform renderer architecture** — `renderer.py` (desktop), `renderer_mobile.py` (Android), `renderer_web.py` (future web/multiplayer stub). All share the same game logic and asset pipeline.
-- **Android full-screen layout** — 460×940 logical canvas: 70 px compact stats strip at top, 400×800 game board (CELL=40), 70 px touch controls at bottom — no wasted space, no overlap with gameplay
-- **Compact NES block-art touch controls** — 6 bordered button-style controls: LEFT / DOWN / DROP / HOLD / ROTATE / RIGHT. Height is ~7 % of screen (vs the old ~40 %). Each button shows a press highlight when touched.
-- **Mobile pause button** — `II` in the stats strip (top-right); tap to pause at any time
+- **Android full-screen layout** — 460×950 logical canvas: 60 px stats strip top, 400×800 board (CELL=40), 100 px NEXT+HOLD info strip bottom. No button bar during gameplay — gesture controls only.
+- **Rainbow RETRIS logo** — left-to-right hue wave flows across all blocks simultaneously; animates on menu and shown static on the custom presplash screen
+- **Gesture touch controls** — tap left/right half of board to move; swipe left/right/up to rotate; swipe down for hard drop; tap HOLD box to hold piece; arc gesture for rotation
+- **Dotted outline ghost** — dashed white border shows landing position without obscuring board visibility
+- **Context-sensitive button bar** — menu shows UP/SELECT/DOWN; game over shows CONTINUE; leaderboard/settings show animated T-piece MENU button; hidden during gameplay
+- **Custom presplash** — full-screen RETRIS rainbow logo shown while app loads
+- **White T-piece app icon** — clean white background with centred purple T-piece
 
 ---
 

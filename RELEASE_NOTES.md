@@ -2,12 +2,29 @@
 
 ---
 
-## v2.4.x — Android Mobile Polish
+## v2.4.14 — Full Mobile UI Polish & Bug Fixes
 *2026-05-30*
 
 ### Added
-- **Rainbow RETRIS logo** — unified left-to-right hue wave across all blocks, slowly drifting
-- **Dotted outline ghost** — shadow type 2: dashed white border per block, no fill (new mobile default)
+- **Rainbow RETRIS logo** — unified left-to-right hue wave across all blocks, slowly drifting (3.5s cycle). Same rainbow effect appears in both the animated menu and the static presplash.
+- **Custom presplash** — full-screen RETRIS rainbow logo on dark background with scattered pieces; shows while Python loads on cold launch
+- **White T-piece app icon** — pure white background, single large purple T-piece centred; clean circle in the Android launcher
+- **Dotted outline ghost** — shadow type 2: dashed white border per block, no fill (new mobile default at 100% opacity)
+- **Ghost shadow type system** — `ghost_shadow_type` on AppState; extensible for future styles (type 1=classic, type 2=dotted)
+- **Settings slider drag** — FINGERMOTION on slider bars updates value in real-time while dragging
+- **Arc gesture** — semicircle finger path detects CW/CCW rotation direction
+- **Swipe-up = rotate CW** alongside swipe-right
+- **Menu sounds** — every tap (START GAME, LEADERBOARD, SETTINGS), navigation UP/DOWN, pause button, confirm all fire appropriate SFX
+- **T-piece thud sound** — the animated MENU button (on leaderboard, settings, controls, etc.) fires `lock` sound on every screen
+- **Pause reordered** — CONTINUE → QUIT TO MENU → SETTINGS (QUIT in middle = less accidental Settings tap)
+
+### Fixed
+- **demo_active not reset** — `start_new_game()` now resets `app.demo_active = False`; eliminated random mid-game MENU jumps caused by demo scenario completing in the background
+- **Ghost desktop rects** — `INGAME_GEAR_RECT` at (420,558), `PAUSE_QUIT_RECT` at (110,362), `BACK_RECT` at (10,556) all removed from mobile handlers; all three overlapped active board rows and caused accidental state changes
+- **Click grace period** — 250ms ignore after any state-changing tap prevents FINGERUP race conditions (e.g. QUIT accidentally triggering SETTINGS on the next tap)
+- **First piece shifts right** — 500ms board gesture grace after new game start
+- **Game-over black square** — overlay is now semi-transparent like the pause menu; drawn on full canvas not bsurf
+- **RETRIS logo clipping** — cell=11 fits all 6 letters in the 460px canvas without overflow
 - **Ghost shadow type system** — `ghost_shadow_type` extensible; type 1=classic, type 2=dotted
 - **Settings slider drag** — FINGERMOTION on slider bars updates value live
 - **Arc gesture** — semicircle path detects CW/CCW rotation

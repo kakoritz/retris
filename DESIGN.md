@@ -375,30 +375,51 @@ The desktop code path is completely unchanged.
 - `logic/` — game_logic, input_handler, touch_controls (platform-agnostic)
 - `core/` — game_state, app_state, board, piece (platform-agnostic)
 
-### Mobile canvas layout (v2.2.0)
+### Mobile canvas layout (v2.4.14)
 
 ```
   y=0   ┌─────────────────────────────────────────────┐
-        │  Stats strip  90 px                         │
-        │  LEVEL(46pt) | SCORE(30pt yellow) | LINES   │
-  y=90  ├───────────────────────────────────────────╌─┤
+        │  Stats strip  60 px (compact)               │
+        │  1 LVL | SCORE centred | LNS 0 | T-piece    │
+  y=60  ├─────────────────────────────────────────────┤
         │ side │                           │ side     │
-        │ 65px │  Board  330×660  CELL=33  │ 65px     │
-        │      │  (theme-tinted panels)    │          │
-  y=750 ├──────┴───────────────────────────┴──────────┤
+        │ 30px │  Board  400×800  CELL=40  │ 30px     │
+        │      │  (87% of screen width)    │          │
+  y=860 ├─────────────────────────────────────────────┤
         │  Info strip  100 px                         │
-        │  [NEXT1] N2 N3 N4 ....... [HOLD]            │
-  y=850 ├─────────────────────────────────────────────┤
-        │  Button bar  100 px  (context-sensitive)    │
-  y=950 └─────────────────────────────────────────────┘
+        │  [NEXT1] N2 N3 N4 ....... [HOLD (animated)] │
+  y=960 └─────────────────────────────────────────────┘
+        (Button bar hidden during gameplay — gestures only)
 ```
 
 Physical on Pixel 5a (1080 usable width, scale = 1080/460 = 2.348):
-- Stats: 211 px physical
-- Board: 775×1550 px physical (71% screen width)
+- Stats: 141 px physical (compact)
+- Board: 939×1879 px physical (87% screen width)
 - Info: 235 px physical
-- Buttons: 235 px physical
-- Total: ~2231 px (fits in 2264 usable ✓)
+- Total: ~2255 px (fits in 2264 usable ✓)
+
+Button bar (100 px) only shown for non-gameplay states. Hidden during PLAYING/DEMO/PRACTICE.
+
+### Ghost shadow type system
+
+`app.ghost_shadow_type` controls ghost rendering:
+- Type 1: semi-transparent colored blocks (classic)
+- Type 2: dotted outline, no fill (mobile default — white dashed border per block)
+
+`opacity_pct` maps to alpha via `opacity_pct * 1.1` for type 2 (100 → alpha 110 ≈ 43% opacity, subtle).
+
+### Board gesture controls
+
+| Gesture | Action |
+|---------|--------|
+| Tap left half | Move left |
+| Tap right half | Move right |
+| Swipe left | Rotate CCW |
+| Swipe right / up | Rotate CW |
+| Swipe down | Hard drop |
+| Tap bottom 10% | Step down 1 cell |
+| Arc (semicircle) | Rotate CW or CCW by curve direction |
+| Tap HOLD box | Hold/swap piece |
 
 ### Context-sensitive button bar
 
@@ -406,7 +427,8 @@ Physical on Pixel 5a (1080 usable width, scale = 1080/460 = 2.348):
 
 | State | Layout |
 |-------|--------|
-| playing / clearing / cascading / demo | LEFT DOWN DROP HOLD ROTATE RIGHT |
+| playing / clearing / cascading | hidden (gestures only) |
+| demo | hidden (full-screen board) |
 | menu / paused | ▲ UP \| SELECT \| ▼ DOWN |
 | enter_name | ▲ UP / ◄ LEFT / OK / RIGHT ► / ▼ DOWN |
 | game_over_anim / game_over | CONTINUE (flashing) |
