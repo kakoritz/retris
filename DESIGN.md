@@ -375,6 +375,7 @@ The desktop code path is completely unchanged.
 - `logic/` — game_logic, input_handler, touch_controls (platform-agnostic)
 - `core/` — game_state, app_state, board, piece (platform-agnostic)
 
+<<<<<<< HEAD
 ### Mobile canvas layout (v2.4.14)
 
 ```
@@ -446,6 +447,57 @@ Button bar (100 px) only shown for non-gameplay states. Hidden during PLAYING/DE
 
 Full details in [ANDROID_BUILD.md](ANDROID_BUILD.md). Key points:
 
+=======
+### Mobile canvas layout (v2.2.0)
+
+```
+  y=0   ┌─────────────────────────────────────────────┐
+        │  Stats strip  90 px                         │
+        │  LEVEL(46pt) | SCORE(30pt yellow) | LINES   │
+  y=90  ├───────────────────────────────────────────╌─┤
+        │ side │                           │ side     │
+        │ 65px │  Board  330×660  CELL=33  │ 65px     │
+        │      │  (theme-tinted panels)    │          │
+  y=750 ├──────┴───────────────────────────┴──────────┤
+        │  Info strip  100 px                         │
+        │  [NEXT1] N2 N3 N4 ....... [HOLD]            │
+  y=850 ├─────────────────────────────────────────────┤
+        │  Button bar  100 px  (context-sensitive)    │
+  y=950 └─────────────────────────────────────────────┘
+```
+
+Physical on Pixel 5a (1080 usable width, scale = 1080/460 = 2.348):
+- Stats: 211 px physical
+- Board: 775×1550 px physical (71% screen width)
+- Info: 235 px physical
+- Buttons: 235 px physical
+- Total: ~2231 px (fits in 2264 usable ✓)
+
+### Context-sensitive button bar
+
+`touch_controls.set_keys_for_state(state)` called each frame rebuilds BUTTONS:
+
+| State | Layout |
+|-------|--------|
+| playing / clearing / cascading / demo | LEFT DOWN DROP HOLD ROTATE RIGHT |
+| menu / paused | ▲ UP \| SELECT \| ▼ DOWN |
+| enter_name | ▲ UP / ◄ LEFT / OK / RIGHT ► / ▼ DOWN |
+| game_over_anim / game_over | CONTINUE (flashing) |
+| leaderboard / settings / about / controls | T-piece MENU (K_ESCAPE) |
+
+### Touch UI — FINGERDOWN routing
+
+1. `touch_controls.handle()` — converts FINGER coords to synthetic KEYDOWN/KEYUP events
+2. `_handle_click(lx, ly, gs, app)` — handles tap on UI elements (start, pause, etc.)
+   - In-game: `M_PAUSE_RECT` (top-right of stats strip) → pause
+   - Game-over: tap CONTINUE button → skip/return to menu
+   - Leaderboard: T-piece MENU button fires K_ESCAPE → back to menu
+
+### APK build overview
+
+Full details in [ANDROID_BUILD.md](ANDROID_BUILD.md). Key points:
+
+>>>>>>> origin/main
 - **CI:** GitHub Actions → `buildozer android debug` → published to `apk-latest` release
   (~20 min build, ~10 min with cache hit)
 - **Local:** `~/.buildozer-env/bin/buildozer android debug` → `bin/*.apk`
