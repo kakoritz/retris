@@ -272,7 +272,8 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
                     return True
             except (ImportError, Exception):
                 pass
-        # Desktop fallback
+            return False   # mobile: never fall through to desktop pause rects
+        # Desktop fallback only
         if INGAME_GEAR_RECT.collidepoint(pt) or PAUSE_CONTINUE_RECT.collidepoint(pt):
             pygame.mixer.music.set_volume(app.pre_pause_vol)
             app.state = PLAYING
@@ -299,7 +300,7 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
             return True
 
     elif app.state == LEADERBOARD:
-        if BACK_RECT.collidepoint(pt):
+        if not getattr(app, 'touch_enabled', False) and BACK_RECT.collidepoint(pt):
             music_game.stop()
             music.start_menu()
             app.state = MENU
