@@ -117,6 +117,22 @@ def end_game(gs: GameState, app: AppState) -> None:
         app.post_anim_state = GAME_OVER
     app.state = GAME_OVER_ANIM
 
+    # ── Web portal score bridge ───────────────────────────────────────────────
+    # When running in the browser via Pygbag, call the JS score submission
+    # function. This is a no-op on desktop/Android (sys.platform check).
+    import sys
+    if sys.platform == "emscripten":
+        try:
+            import platform
+            platform.window.retrisSubmitScore(
+                int(gs.score),
+                int(gs.level),
+                int(gs.lines),
+                float(gs.stat_time),
+            )
+        except Exception:
+            pass   # Guest play or JS bridge unavailable
+
 
 def reset_lock(gs: GameState) -> None:
     """Restart the lock-delay timer on a move or rotation, up to LOCK_MAX_MOVES times.

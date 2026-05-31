@@ -150,7 +150,8 @@ def _build_icon() -> pygame.Surface:
     return surf
 
 
-def main():
+async def main():
+    import asyncio
     pygame.init()
     pygame.mixer.music.set_endevent(MUSIC_END)
 
@@ -665,7 +666,18 @@ def main():
             pygame.transform.smoothscale(app.screen, app.display.get_size(), app.display)
         pygame.display.flip()
 
+        # Yield to browser event loop when running as WASM via Pygbag
+        import sys as _sys
+        if _sys.platform == "emscripten":
+            import asyncio as _aio
+            await _aio.sleep(0)
 
-if __name__ == "__main__":
+
+import sys as _sys_entry, asyncio as _aio_entry
+
+if _sys_entry.platform == "emscripten":
+    # Pygbag entry point — browser WASM
+    _aio_entry.run(main())
+elif __name__ == "__main__":
     from crash_handler import run_with_crash_handler
-    run_with_crash_handler(main)
+    run_with_crash_handler(lambda: _aio_entry.run(main()))
