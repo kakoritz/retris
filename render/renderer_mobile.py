@@ -395,7 +395,8 @@ def draw_mobile_pause(surf, blink_on, pause_row=0):
                                      (x+_PAUSE_BLOCK-1, y+_PAUSE_BLOCK-1))
 
     cx = SCREEN_WIDTH // 2
-    items  = ["CONTINUE", "SETTINGS", "QUIT  TO  MENU"]
+    # Order: CONTINUE → QUIT → SETTINGS (QUIT in middle = less accidental Settings tap)
+    items  = ["CONTINUE", "QUIT  TO  MENU", "SETTINGS"]
     # item_y must match M_PAUSE_ITEM_RECTS for tap detection
     item_y = [board_cy - 40, board_cy + 34, board_cy + 108]
     for i, (label, y) in enumerate(zip(items, item_y)):

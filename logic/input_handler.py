@@ -45,19 +45,26 @@ INITIALS_CHARS  = "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
 # Swipe left/up = rotate CCW/CW | Swipe right = rotate CW | Swipe down = drop
 # Tap bottom 10% = step down one cell
 _board_gestures: dict = {}
-_SWIPE_DROP_PX    = 110       # px down for hard drop
-_SWIPE_ROT_PX     = 50        # px horizontal/vertical for rotate
-_TAP_MAX_PX       = 28        # max movement for a tap
-_BOTTOM_ZONE_PCT  = 0.90      # bottom 10% of board = step down
-_game_start_ms    = 0         # timestamp of last new game start
-_GAME_GRACE_MS    = 500       # ignore gestures for 500ms after game starts
-_click_grace_ms   = 0         # ignore _handle_click for 250ms after state change
+_SWIPE_DROP_PX    = 110
+_SWIPE_ROT_PX     = 50
+_TAP_MAX_PX       = 28
+_BOTTOM_ZONE_PCT  = 0.90
+_game_start_ms    = 0
+_GAME_GRACE_MS    = 500
+_click_grace_ms   = 0
 _CLICK_GRACE_MS   = 250
 _DOUBLE_TAP_MS    = 300
 _ROTATE_EXPIRE_MS = 450
 _last_tap_ms      = 0
 _rotate_mode      = False
 _rotate_last_ms   = 0
+
+# Arc gesture: track path samples to detect CW/CCW semicircle
+# Each entry: (start_lx, start_ly, path_samples, action_fired)
+# path_samples: list of (lx, ly)
+_ARC_SAMPLES_KEY  = 3          # store as 4th element
+_ARC_MIN_SPAN     = 60         # min total arc span (px) to detect rotation
+_ARC_CURVE_RATIO  = 0.35       # how much the path must curve vs go straight
 
 
 def _post_key(evt_type: int, key: int) -> None:
@@ -89,39 +96,61 @@ def _handle_board_gesture(event, app) -> bool:
 
     if event.type == pygame.FINGERDOWN:
         if in_board:
-            _board_gestures[event.finger_id] = (lx, ly, None)
+            _board_gestures[event.finger_id] = (lx, ly, None, [(lx, ly)])
         return False
 
     elif event.type == pygame.FINGERMOTION:
         if event.finger_id not in _board_gestures:
             return False
-        sx, sy, fired = _board_gestures[event.finger_id]
+        sx, sy, fired, path = _board_gestures[event.finger_id]
         if fired:
             return False
+        path.append((lx, ly))
         dx = lx - sx
         dy = ly - sy
         adx, ady = abs(dx), abs(dy)
+
         # Swipe down → hard drop
         if dy > _SWIPE_DROP_PX and ady > adx * 1.4:
             _post_key(pygame.KEYDOWN, pygame.K_SPACE)
-            _board_gestures[event.finger_id] = (sx, sy, 'drop')
+            _board_gestures[event.finger_id] = (sx, sy, 'drop', path)
             return True
-        # Swipe left → rotate CCW | Swipe right → rotate CW
+
+        # Arc gesture: detect CW/CCW semicircle when enough samples accumulated
+        if len(path) >= 6:
+            xs = [p[0] for p in path]
+            ys = [p[1] for p in path]
+            x_span = max(xs) - min(xs)
+            y_span = max(ys) - min(ys)
+            if x_span > _ARC_MIN_SPAN and y_span > _ARC_MIN_SPAN * 0.3:
+                # Compute cross product of start→mid and start→end vectors
+                # Positive = CCW arc, negative = CW arc
+                mid = path[len(path)//2]
+                v1x, v1y = mid[0]-sx, mid[1]-sy
+                v2x, v2y = lx-sx, ly-sy
+                cross = v1x*v2y - v1y*v2x
+                if abs(cross) > _ARC_MIN_SPAN * _ARC_MIN_SPAN * _ARC_CURVE_RATIO:
+                    key = pygame.K_z if cross > 0 else pygame.K_UP
+                    _post_key(pygame.KEYDOWN, key)
+                    _board_gestures[event.finger_id] = (sx, sy, 'arc', path)
+                    return True
+
+        # Cardinal swipe left/right → rotate
         if adx > _SWIPE_ROT_PX and adx > ady * 1.3:
             key = pygame.K_UP if dx > 0 else pygame.K_z
             _post_key(pygame.KEYDOWN, key)
-            _board_gestures[event.finger_id] = (sx, sy, 'rotate')
+            _board_gestures[event.finger_id] = (sx, sy, 'rotate', path)
             return True
         # Swipe up → rotate CW
         if dy < -_SWIPE_ROT_PX and ady > adx * 1.3:
             _post_key(pygame.KEYDOWN, pygame.K_UP)
-            _board_gestures[event.finger_id] = (sx, sy, 'rotate')
+            _board_gestures[event.finger_id] = (sx, sy, 'rotate', path)
             return True
 
     elif event.type == pygame.FINGERUP:
         if event.finger_id not in _board_gestures:
             return False
-        sx, sy, fired = _board_gestures.pop(event.finger_id)
+        sx, sy, fired, path = _board_gestures.pop(event.finger_id)
         if fired:
             return False
         dx, dy = abs(lx - sx), abs(ly - sy)
@@ -186,6 +215,7 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
 
         if _m_start.collidepoint(pt):
             global _game_start_ms
+            audio.play('lock')
             app.menu_row = 0
             start_new_game(gs, app)
             app.best = highscore.best()
@@ -196,19 +226,22 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
             _set_click_grace()
             return True
         if _m_lb.collidepoint(pt):
+            audio.play('move')
             app.menu_row   = 1
             app.lb_scores  = highscore.load()
             app.lb_hi_name = app.lb_hi_score = None
-            app.state      = LEADERBOARD
+            app.state      = LEADERBOARD; _set_click_grace()
             return True
         if _m_set.collidepoint(pt):
+            audio.play('move')
             app.menu_row              = 2
             app.settings_row          = 0
             app.settings_return_state = MENU
-            app.state = SETTINGS
+            app.state = SETTINGS; _set_click_grace()
             return True
         if MENU_ABOUT_RECT.collidepoint(pt):
-            app.state = ABOUT
+            audio.play('move')
+            app.state = ABOUT; _set_click_grace()
             return True
 
     elif app.state in (PLAYING, CLEARING, CASCADING):
@@ -233,10 +266,12 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
             except ImportError:
                 pass
         if should_pause:
+            audio.play('lock')   # thud sound on pause
             app.pre_pause_vol = pygame.mixer.music.get_volume()
             pygame.mixer.music.set_volume(max(0.0, app.pre_pause_vol * 0.10))
             app.pause_row = 0
             app.state = PAUSED
+            _set_click_grace()
             return True
 
     elif app.state == GAME_OVER_ANIM:
@@ -256,19 +291,22 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
             try:
                 from renderer_mobile import M_PAUSE_ITEM_RECTS as _MPIR
                 if _MPIR[0].collidepoint(pt):   # CONTINUE
+                    audio.play('move')
                     pygame.mixer.music.set_volume(app.pre_pause_vol)
                     app.state = PLAYING; _set_click_grace()
                     return True
-                if _MPIR[1].collidepoint(pt):   # SETTINGS
+                if _MPIR[1].collidepoint(pt):   # QUIT TO MENU (now 2nd)
+                    audio.play('lock')
+                    music_game.stop()
+                    music.start_menu()
+                    app.state = MENU; _set_click_grace()
+                    return True
+                if _MPIR[2].collidepoint(pt):   # SETTINGS (now 3rd)
+                    audio.play('move')
                     pygame.mixer.music.set_volume(app.pre_pause_vol)
                     app.settings_row          = 0
                     app.settings_return_state = PAUSED
                     app.state = SETTINGS; _set_click_grace()
-                    return True
-                if _MPIR[2].collidepoint(pt):   # QUIT TO MENU
-                    music_game.stop()
-                    music.start_menu()
-                    app.state = MENU; _set_click_grace()
                     return True
             except (ImportError, Exception):
                 pass
@@ -585,18 +623,18 @@ def handle_input(gs: GameState, app: AppState, dt: int) -> None:
                 import audio as _aud; _aud.play('move')
             elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE):
                 import audio as _aud; _aud.play('lock')
-                if app.pause_row == 0:
+                if app.pause_row == 0:    # CONTINUE
                     pygame.mixer.music.set_volume(app.pre_pause_vol)
                     app.state = PLAYING
-                elif app.pause_row == 1:
+                elif app.pause_row == 1:  # QUIT TO MENU (new order)
+                    music_game.stop()
+                    music.start_menu()
+                    app.state = MENU
+                else:                     # SETTINGS
                     pygame.mixer.music.set_volume(app.pre_pause_vol)
                     app.settings_row          = 0
                     app.settings_return_state = PAUSED
                     app.state = SETTINGS
-                else:
-                    music_game.stop()
-                    music.start_menu()
-                    app.state = MENU
             elif event.key == pygame.K_ESCAPE:
                 pygame.mixer.music.set_volume(app.pre_pause_vol)
                 app.state = PLAYING
