@@ -726,8 +726,8 @@ def draw_mobile_menu(surf, blink_on, updater=None, menu_row=0):
     _draw_scattered_pieces(surf)
     cx = SCREEN_WIDTH // 2
 
-    # ── RETRIS logo — larger cell=13 for bold/thick blocks ───────────────────
-    draw_retris_logo(surf, top_y=140, cell=13)
+    # ── RETRIS logo — cell=11 fills canvas width with bold blocks ────────────
+    draw_retris_logo(surf, top_y=150, cell=11)
 
     # ── menu items — large, Y-centred in bottom 2/3 ──────────────────────────
     items  = ["START  GAME", "LEADERBOARD", "SETTINGS"]
