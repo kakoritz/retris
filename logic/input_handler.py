@@ -684,6 +684,8 @@ def handle_input(gs: GameState, app: AppState, dt: int) -> None:
         # ── LEADERBOARD ───────────────────────────────────────────────────────
         elif app.state == LEADERBOARD:
             if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_ESCAPE):
+                if event.key == pygame.K_ESCAPE:
+                    audio.play('lock')   # T-piece MENU button thud
                 music_game.stop()
                 music.start_menu()
                 app.state = MENU
@@ -727,11 +729,15 @@ def handle_input(gs: GameState, app: AppState, dt: int) -> None:
         # ── CONTROLS ──────────────────────────────────────────────────────────
         elif app.state == CONTROLS:
             if event.key in (pygame.K_ESCAPE, pygame.K_RETURN, pygame.K_KP_ENTER):
+                if event.key == pygame.K_ESCAPE:
+                    audio.play('lock')
                 app.state = SETTINGS
 
         # ── SETTINGS ──────────────────────────────────────────────────────────
         elif app.state == SETTINGS:
             if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_ESCAPE):
+                if event.key == pygame.K_ESCAPE:
+                    audio.play('lock')
                 if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER) and app.settings_row == 5:
                     app.state = CONTROLS
                 elif app.settings_return_state == PAUSED:

@@ -226,6 +226,8 @@ def main():
         # Default ghost opacity 40% on mobile (vs 15% desktop)
         if app.ghost_opacity_pct == 15:
             app.ghost_opacity_pct = 40
+        # Default shadow type 2 (dotted outline) on mobile
+        app.ghost_shadow_type = 2
 
     if _android:
         import touch_controls as _tc_init
@@ -382,7 +384,8 @@ def main():
 
                 if app.state in (PLAYING, PAUSED, DEMO):
                     draw_mobile_ghost(bsurf, gs.board, gs.current,
-                                      app.ghost_opacity_pct, palette_phase=level_theme)
+                                      app.ghost_opacity_pct, palette_phase=level_theme,
+                                      shadow_type=getattr(app, 'ghost_shadow_type', 1))
                     draw_mobile_piece(bsurf, gs.current, palette_phase=level_theme)
 
                 draw_particles(bsurf, gs.particles)

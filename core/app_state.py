@@ -111,6 +111,11 @@ class AppState:
         self.demo_label:            str  = ''
         self.menu_idle_timer:       int  = 0          # ms since last key at menu
 
+        # ── ghost shadow type ─────────────────────────────────────────────────
+        # 1 = semi-transparent colored blocks (classic)
+        # 2 = dotted outline, no fill (mobile default)
+        self.ghost_shadow_type: int = 1
+
         # ── touch / Android ──────────────────────────────────────────────────
         self.touch_enabled: bool  = False
         self.touch_dw:      int   = 0       # display pixel width  (FINGER coord space)

@@ -240,12 +240,59 @@ def draw_mobile_piece(surf, piece, palette_phase=0):
                           ((piece.x+ci)*M_CELL, (piece.y+ri)*M_CELL))
 
 
-def draw_mobile_ghost(surf, board, piece, opacity_pct=40, palette_phase=0):
+def _draw_dashed_rect(surf, color, x, y, w, h, dash=4, gap=3):
+    """Draw a dashed rectangle outline — used for shadow type 2."""
+    x2, y2 = x + w, y + h
+    for ex in (x, x2):           # vertical edges
+        cy = y
+        on = True
+        while cy <= y2:
+            end = min(cy + (dash if on else gap), y2)
+            if on:
+                pygame.draw.line(surf, color, (ex, cy), (ex, end), 1)
+            cy = end + 1
+            on = not on
+    for ey in (y, y2):            # horizontal edges
+        cx = x
+        on = True
+        while cx <= x2:
+            end = min(cx + (dash if on else gap), x2)
+            if on:
+                pygame.draw.line(surf, color, (cx, ey), (end, ey), 1)
+            cx = end + 1
+            on = not on
+
+
+def draw_mobile_ghost(surf, board, piece, opacity_pct=40, palette_phase=0,
+                      shadow_type=2):
+    """Draw ghost piece.
+    shadow_type 1 = semi-transparent colored blocks
+    shadow_type 2 = dotted outline only (no fill)
+    """
     if opacity_pct == 0:
         return
     gy = board.ghost_y(piece)
     if gy == piece.y:
         return
+
+    if shadow_type == 2:
+        # Dotted outline — no fill, just dashed border per block
+        # Colour: white at medium opacity
+        dot_col = (210, 210, 210)
+        dot_surf = pygame.Surface((1, 1), pygame.SRCALPHA)  # dummy for alpha blending
+        alpha    = int(opacity_pct * 2.2)   # scale 0-100 → 0-220
+        col      = (*dot_col, min(255, alpha))
+        for ri, row in enumerate(piece.shape):
+            for ci, val in enumerate(row):
+                if val:
+                    px = (piece.x + ci) * M_CELL
+                    py = (gy + ri) * M_CELL
+                    # Create tiny SRCALPHA surface and draw dashes onto it
+                    cell_s = pygame.Surface((M_CELL, M_CELL), pygame.SRCALPHA)
+                    _draw_dashed_rect(cell_s, col, 1, 1, M_CELL-2, M_CELL-2, 5, 3)
+                    surf.blit(cell_s, (px, py))
+        return
+
     for ri, row in enumerate(piece.shape):
         for ci, val in enumerate(row):
             if val:
