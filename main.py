@@ -215,15 +215,16 @@ def main():
     clock = pygame.time.Clock()
     music.start()
     audio.prime()
-    # Apply saved volumes on startup
-    music.set_volume(app.music_vol_pct / 100)
-    music_game.set_volume(app.music_vol_pct / 100)
 
     gs  = GameState()
     gs.reset()
     app = AppState(display, screen, current_scale)
     app.best    = highscore.best()
     app.updater = UpdateChecker(VERSION)
+
+    # Apply saved volumes (must be after app is created)
+    music.set_volume(app.music_vol_pct / 100)
+    music_game.set_volume(app.music_vol_pct / 100)
 
     if _mobile:
         # Mobile defaults for ghost
