@@ -6,7 +6,7 @@ source.dir      = .
 source.include_exts = py,json
 source.exclude_dirs = tests, .git, .claude, __pycache__, .venv, custom_recipes
 
-version         = 2.4.12
+version         = 2.4.13
 
 # Use compiled pygame recipe (builds from source against Android SDL2).
 # custom_recipes/pygame overrides p4a's 2.1.0 with 2.6.1 (Python 3.14 support).
@@ -32,7 +32,7 @@ android.permissions = INTERNET
 android.meta_data = audio.buffer_size=1024
 
 icon.filename       = %(source.dir)s/icon.png
-presplash           = %(source.dir)s/presplash.png
+presplash           = %(source.dir)s/presplash.jpg
 presplash.color     = #0F0F23
 
 # Custom recipes directory: overrides p4a's pygame recipe with 2.6.1 which
