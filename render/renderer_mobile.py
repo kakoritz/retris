@@ -1111,7 +1111,7 @@ def draw_mobile_name_entry(surf, initials, cursor, blink_on, score, lines, level
     surf.blit(sc_t, (cx - sc_t.get_width()//2, top_y + 48))
 
     # Hint
-    hint = _font(16, bold=False).render("SWIPE  ▲▼  OR  TAP  ARROWS  TO  CHANGE  LETTER", True, _LBL_COL)
+    hint = _font(16, bold=False).render("SWIPE  OR  TAP  ARROWS  TO  CHANGE  LETTER", True, _LBL_COL)
     surf.blit(hint, (cx - hint.get_width()//2, top_y + 84))
 
     slot_y   = top_y + 36 + 16 + 28 + 16 + ARROW_H + ARROW_GAP
@@ -1125,13 +1125,14 @@ def draw_mobile_name_entry(surf, initials, cursor, blink_on, score, lines, level
         cx_box = x + SLOT // 2
         active = (i == cursor)
 
-        # ▲ arrow button
+        # ▲ arrow button — NES block-art icon
         up_rect = pygame.Rect(x, arrow_up_y, SLOT, ARROW_H)
         M_NAME_UP_RECTS.append(up_rect)
         pygame.draw.rect(surf, (20, 40, 10) if active else _BTN_BG, up_rect, border_radius=8)
         pygame.draw.rect(surf, YELLOW if active else _BTN_BORDER, up_rect, 2, border_radius=8)
-        t_up = _font(32).render("▲", True, YELLOW if active else _LBL_COL)
-        surf.blit(t_up, (cx_box - t_up.get_width()//2, arrow_up_y + ARROW_H//2 - t_up.get_height()//2))
+        _draw_block_icon(surf, _MOBILE_ICONS['up_nav'],
+                         2 if active else 6,   # yellow when active, blue dim when not
+                         max(6, ARROW_H//9), cx_box, arrow_up_y + ARROW_H//2)
 
         # Letter slot
         slot_rect = pygame.Rect(x, slot_y, SLOT, SLOT)
@@ -1157,10 +1158,11 @@ def draw_mobile_name_entry(surf, initials, cursor, blink_on, score, lines, level
             lt = _font(72).render(ch, True, YELLOW if active else WHITE)
             surf.blit(lt, (cx_box - lt.get_width()//2, slot_y + SLOT//2 - lt.get_height()//2))
 
-        # ▼ arrow button
+        # ▼ arrow button — NES block-art icon
         dn_rect = pygame.Rect(x, arrow_dn_y, SLOT, ARROW_H)
         M_NAME_DN_RECTS.append(dn_rect)
         pygame.draw.rect(surf, (20, 40, 10) if active else _BTN_BG, dn_rect, border_radius=8)
         pygame.draw.rect(surf, YELLOW if active else _BTN_BORDER, dn_rect, 2, border_radius=8)
-        t_dn = _font(32).render("▼", True, YELLOW if active else _LBL_COL)
-        surf.blit(t_dn, (cx_box - t_dn.get_width()//2, arrow_dn_y + ARROW_H//2 - t_dn.get_height()//2))
+        _draw_block_icon(surf, _MOBILE_ICONS['down_nav'],
+                         2 if active else 6,
+                         max(6, ARROW_H//9), cx_box, arrow_dn_y + ARROW_H//2)
