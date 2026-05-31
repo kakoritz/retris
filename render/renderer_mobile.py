@@ -26,7 +26,7 @@ from sprites import get_block, get_ghost
 from renderer import (
     _font, _draw_shadow_text, _draw_block_icon, _TC_ICONS,
     _PAUSE_CELL, _PAUSE_BLOCK, _PAUSE_GLYPHS, _PAUSE_COLORS,
-    _LB_RANK_COLORS,
+    _LB_RANK_COLORS, _LOGO_GLYPHS,
 )
 from game_constants import (
     FLASH_COLOR_NORM, FLASH_COLOR_QUAD,
@@ -158,6 +158,46 @@ _STATE_LAYOUTS = {
     'practice':       _LAY_MENU_BTN,   # T-piece MENU exits practice
     'music_test':     _LAY_MENU_BTN,
 }
+
+
+def _draw_neon_block(surf, color, x, y, size):
+    """NES-style block with custom color — used for rainbow logo."""
+    r, g, b = color
+    hi   = (min(255, r+80), min(255, g+80), min(255, b+80))
+    sh   = (max(0,   r-70), max(0,   g-70), max(0,   b-70))
+    dark = (8, 8, 20)
+    pygame.draw.rect(surf, dark,  (x,   y,   size, size))
+    pygame.draw.rect(surf, color, (x+1, y+1, size-2, size-2))
+    pygame.draw.line(surf, hi, (x+1, y+1),      (x+size-2, y+1))
+    pygame.draw.line(surf, hi, (x+1, y+1),      (x+1, y+size-2))
+    pygame.draw.line(surf, sh, (x+1, y+size-2), (x+size-2, y+size-2))
+    pygame.draw.line(surf, sh, (x+size-2, y+1), (x+size-2, y+size-2))
+
+
+def draw_retris_logo_rainbow(surf, top_y: int, cell: int = 11) -> None:
+    """RETRIS logo where all blocks share a left-to-right rainbow wave."""
+    letters  = list("RETRIS")
+    letter_w = 5 * cell
+    gap      = 2 * cell
+    total_w  = len(letters) * letter_w + (len(letters)-1) * gap
+    surf_w   = surf.get_width()
+    x0       = (surf_w - total_w) // 2
+    t_ms     = pygame.time.get_ticks()
+
+    for li, ch in enumerate(letters):
+        glyph = _LOGO_GLYPHS[ch]
+        lx    = x0 + li * (letter_w + gap)
+        for gy2 in range(len(glyph)):
+            for gx2 in range(len(glyph[gy2])):
+                if glyph[gy2][gx2]:
+                    px   = lx + gx2 * cell
+                    py   = top_y + gy2 * cell
+                    # Hue: left=0 right=1, drifts slowly with time
+                    hue  = ((px - x0) / max(total_w, 1) + t_ms / 3500.0) % 1.0
+                    r2, g2, b2 = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
+                    _draw_neon_block(surf,
+                                     (int(r2*255), int(g2*255), int(b2*255)),
+                                     px, py, cell - 1)
 
 
 def _draw_menu_bg(surf):
@@ -774,8 +814,8 @@ def draw_mobile_menu(surf, blink_on, updater=None, menu_row=0):
     _draw_scattered_pieces(surf)
     cx = SCREEN_WIDTH // 2
 
-    # ── RETRIS logo — cell=11 fills canvas width with bold blocks ────────────
-    draw_retris_logo(surf, top_y=150, cell=11)
+    # ── RETRIS logo — rainbow wave flows left to right across all blocks ─────
+    draw_retris_logo_rainbow(surf, top_y=150, cell=11)
 
     # ── menu items — large, Y-centred in bottom 2/3 ──────────────────────────
     items  = ["START  GAME", "LEADERBOARD", "SETTINGS"]
