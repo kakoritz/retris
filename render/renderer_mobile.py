@@ -327,31 +327,37 @@ def draw_mobile_level_up(surf, level_num, timer, max_timer, palette_phase=0):
 
 def draw_mobile_game_over(surf, score, stat_pieces=0, stat_tetrises=0,
                           stat_tspins=0, stat_combo=0, stat_time=0.0):
-    cx = M_BOARD_W // 2
-    cy = M_BOARD_H // 2    # 330
-    ov = pygame.Surface((M_BOARD_W, 275), pygame.SRCALPHA)
-    ov.fill((0, 0, 0, 215))
-    surf.blit(ov, (0, cy - 82))
-    t = _font(30).render("GAME  OVER", True, (255, 55, 55))
-    surf.blit(t, (cx - t.get_width()//2, cy - 76))
-    t = _font(20).render(f"SCORE  {str(score).zfill(7)}", True, YELLOW)
-    surf.blit(t, (cx - t.get_width()//2, cy - 38))
+    """Game-over overlay — identical approach to pause: semi-transparent full-canvas."""
+    # Same semi-transparent overlay as pause menu
+    ov = pygame.Surface((SCREEN_WIDTH, M_CANVAS_H), pygame.SRCALPHA)
+    ov.fill((0, 0, 0, 175))
+    surf.blit(ov, (0, 0))
+
+    # Content centred in the board area (same as pause)
+    cx = SCREEN_WIDTH // 2
+    cy = M_BOARD_Y + M_BOARD_H // 2   # 460
+
+    _draw_shadow_text(surf, "GAME  OVER", 48, cx, cy - 120, (255, 55, 55), center_x=True)
+
+    t = _font(26).render(f"SCORE  {str(score).zfill(7)}", True, YELLOW)
+    surf.blit(t, (cx - t.get_width()//2, cy - 60))
+
     mins, secs = divmod(int(stat_time), 60)
     sy = cy - 10
-    for label, val in [("TIME", f"{mins}:{secs:02d}"),
-                       ("PIECES", str(stat_pieces)),
-                       ("RETRIS!", str(stat_tetrises)),
-                       ("T-SPINS", str(stat_tspins)),
+    for label, val in [("TIME",       f"{mins}:{secs:02d}"),
+                       ("PIECES",     str(stat_pieces)),
+                       ("RETRIS!",    str(stat_tetrises)),
+                       ("T-SPINS",    str(stat_tspins)),
                        ("BEST COMBO", f"×{stat_combo}")]:
-        tl = _font(12).render(label, True, BORDER_COLOR)
-        tv = _font(13).render(val, True, (200, 220, 255))
-        surf.blit(tl, (cx - 82, sy))
-        surf.blit(tv, (cx + 16, sy))
-        sy += 20
-    hint = _font(11, bold=False).render(
-        "tap  CONTINUE  to return to menu",
-        True, tuple(c//2 for c in BORDER_COLOR))
-    surf.blit(hint, (cx - hint.get_width()//2, cy + 114))
+        tl = _font(16).render(label, True, BORDER_COLOR)
+        tv = _font(17).render(val, True, (200, 220, 255))
+        surf.blit(tl, (cx - 90, sy))
+        surf.blit(tv, (cx + 20, sy))
+        sy += 24
+
+    hint = _font(14, bold=False).render("tap  CONTINUE  to return to menu",
+                                         True, (100, 100, 120))
+    surf.blit(hint, (cx - hint.get_width()//2, cy + 140))
 
 
 # ── pause overlay ─────────────────────────────────────────────────────────────
@@ -720,8 +726,8 @@ def draw_mobile_menu(surf, blink_on, updater=None, menu_row=0):
     _draw_scattered_pieces(surf)
     cx = SCREEN_WIDTH // 2
 
-    # ── RETRIS logo ───────────────────────────────────────────────────────────
-    draw_retris_logo(surf, top_y=160)
+    # ── RETRIS logo — larger cell=13 for bold/thick blocks ───────────────────
+    draw_retris_logo(surf, top_y=140, cell=13)
 
     # ── menu items — large, Y-centred in bottom 2/3 ──────────────────────────
     items  = ["START  GAME", "LEADERBOARD", "SETTINGS"]

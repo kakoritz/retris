@@ -414,14 +414,9 @@ def main():
                     fl.fill((255, 255, 255, alpha))
                     bsurf.blit(fl, (0, 0))
 
-                if app.state == GAME_OVER:
-                    draw_mobile_game_over(bsurf, gs.score,
-                                          gs.stat_pieces, gs.stat_tetrises,
-                                          gs.stat_tspins, gs.stat_combo, gs.stat_time)
                 elif app.state == GAME_OVER_ANIM:
-                    # Centre desktop-sized animation on mobile board for correct sounds+visuals
-                    _anim = pygame.Surface((BOARD_WIDTH, BOARD_HEIGHT))
-                    _anim.fill((0, 0, 0))
+                    # Transparent surface so blocks show over the board, not a black box
+                    _anim = pygame.Surface((BOARD_WIDTH, BOARD_HEIGHT), pygame.SRCALPHA)
                     app.go_anim.draw(_anim)
                     bsurf.blit(_anim, ((M_BOARD_W - BOARD_WIDTH)//2,
                                        (M_BOARD_H - BOARD_HEIGHT)//2))
@@ -477,6 +472,12 @@ def main():
                         hold_has_piece=gs.hold_piece is not None,
                         palette_phase=level_theme,
                     )
+
+                # Game-over overlay on full canvas — same as pause (transparent, not black box)
+                if app.state == GAME_OVER:
+                    draw_mobile_game_over(app.screen, gs.score,
+                                          gs.stat_pieces, gs.stat_tetrises,
+                                          gs.stat_tspins, gs.stat_combo, gs.stat_time)
 
                 if app.state == PAUSED:
                     draw_mobile_pause(app.screen, app.blink_on, app.pause_row)

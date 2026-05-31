@@ -51,6 +51,8 @@ _TAP_MAX_PX       = 28        # max movement for a tap
 _BOTTOM_ZONE_PCT  = 0.90      # bottom 10% of board = step down
 _game_start_ms    = 0         # timestamp of last new game start
 _GAME_GRACE_MS    = 500       # ignore gestures for 500ms after game starts
+_click_grace_ms   = 0         # ignore _handle_click for 250ms after state change
+_CLICK_GRACE_MS   = 250
 _DOUBLE_TAP_MS    = 300
 _ROTATE_EXPIRE_MS = 450
 _last_tap_ms      = 0
@@ -148,8 +150,16 @@ def _resize_display(scale: float) -> pygame.Surface:
     return pygame.display.set_mode((w, h))
 
 
+def _set_click_grace():
+    """Call after any state-changing tap to prevent FINGERUP firing on new state."""
+    global _click_grace_ms
+    _click_grace_ms = pygame.time.get_ticks()
+
+
 def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
     """Handle a tap/click at logical pixel (lx, ly). Returns True if consumed."""
+    if pygame.time.get_ticks() - _click_grace_ms < _CLICK_GRACE_MS:
+        return False   # grace period — ignore spurious FINGERDOWN after state change
     from renderer import (MENU_START_RECT, MENU_LB_RECT, MENU_SETTINGS_ITEM_RECT,
                           MENU_ABOUT_RECT, INGAME_GEAR_RECT,
                           PAUSE_CONTINUE_RECT, PAUSE_SETTINGS_RECT, PAUSE_QUIT_RECT,
@@ -183,6 +193,7 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
             music_game.start_sequence()
             app.state = PLAYING
             _game_start_ms = pygame.time.get_ticks()
+            _set_click_grace()
             return True
         if _m_lb.collidepoint(pt):
             app.menu_row   = 1
@@ -234,10 +245,9 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
         return True
 
     elif app.state == GAME_OVER:
-        # Tap anywhere to return to menu
         music_game.stop()
         music.start_menu()
-        app.state = MENU
+        app.state = MENU; _set_click_grace()
         return True
 
     elif app.state == PAUSED:
@@ -247,18 +257,18 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
                 from renderer_mobile import M_PAUSE_ITEM_RECTS as _MPIR
                 if _MPIR[0].collidepoint(pt):   # CONTINUE
                     pygame.mixer.music.set_volume(app.pre_pause_vol)
-                    app.state = PLAYING
+                    app.state = PLAYING; _set_click_grace()
                     return True
                 if _MPIR[1].collidepoint(pt):   # SETTINGS
                     pygame.mixer.music.set_volume(app.pre_pause_vol)
                     app.settings_row          = 0
                     app.settings_return_state = PAUSED
-                    app.state = SETTINGS
+                    app.state = SETTINGS; _set_click_grace()
                     return True
                 if _MPIR[2].collidepoint(pt):   # QUIT TO MENU
                     music_game.stop()
                     music.start_menu()
-                    app.state = MENU
+                    app.state = MENU; _set_click_grace()
                     return True
             except (ImportError, Exception):
                 pass
