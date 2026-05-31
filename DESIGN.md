@@ -375,6 +375,79 @@ The desktop code path is completely unchanged.
 - `logic/` — game_logic, input_handler, touch_controls (platform-agnostic)
 - `core/` — game_state, app_state, board, piece (platform-agnostic)
 
+<<<<<<< HEAD
+### Mobile canvas layout (v2.4.14)
+
+```
+  y=0   ┌─────────────────────────────────────────────┐
+        │  Stats strip  60 px (compact)               │
+        │  1 LVL | SCORE centred | LNS 0 | T-piece    │
+  y=60  ├─────────────────────────────────────────────┤
+        │ side │                           │ side     │
+        │ 30px │  Board  400×800  CELL=40  │ 30px     │
+        │      │  (87% of screen width)    │          │
+  y=860 ├─────────────────────────────────────────────┤
+        │  Info strip  100 px                         │
+        │  [NEXT1] N2 N3 N4 ....... [HOLD (animated)] │
+  y=960 └─────────────────────────────────────────────┘
+        (Button bar hidden during gameplay — gestures only)
+```
+
+Physical on Pixel 5a (1080 usable width, scale = 1080/460 = 2.348):
+- Stats: 141 px physical (compact)
+- Board: 939×1879 px physical (87% screen width)
+- Info: 235 px physical
+- Total: ~2255 px (fits in 2264 usable ✓)
+
+Button bar (100 px) only shown for non-gameplay states. Hidden during PLAYING/DEMO/PRACTICE.
+
+### Ghost shadow type system
+
+`app.ghost_shadow_type` controls ghost rendering:
+- Type 1: semi-transparent colored blocks (classic)
+- Type 2: dotted outline, no fill (mobile default — white dashed border per block)
+
+`opacity_pct` maps to alpha via `opacity_pct * 1.1` for type 2 (100 → alpha 110 ≈ 43% opacity, subtle).
+
+### Board gesture controls
+
+| Gesture | Action |
+|---------|--------|
+| Tap left half | Move left |
+| Tap right half | Move right |
+| Swipe left | Rotate CCW |
+| Swipe right / up | Rotate CW |
+| Swipe down | Hard drop |
+| Tap bottom 10% | Step down 1 cell |
+| Arc (semicircle) | Rotate CW or CCW by curve direction |
+| Tap HOLD box | Hold/swap piece |
+
+### Context-sensitive button bar
+
+`touch_controls.set_keys_for_state(state)` called each frame rebuilds BUTTONS:
+
+| State | Layout |
+|-------|--------|
+| playing / clearing / cascading | hidden (gestures only) |
+| demo | hidden (full-screen board) |
+| menu / paused | ▲ UP \| SELECT \| ▼ DOWN |
+| enter_name | ▲ UP / ◄ LEFT / OK / RIGHT ► / ▼ DOWN |
+| game_over_anim / game_over | CONTINUE (flashing) |
+| leaderboard / settings / about / controls | T-piece MENU (K_ESCAPE) |
+
+### Touch UI — FINGERDOWN routing
+
+1. `touch_controls.handle()` — converts FINGER coords to synthetic KEYDOWN/KEYUP events
+2. `_handle_click(lx, ly, gs, app)` — handles tap on UI elements (start, pause, etc.)
+   - In-game: `M_PAUSE_RECT` (top-right of stats strip) → pause
+   - Game-over: tap CONTINUE button → skip/return to menu
+   - Leaderboard: T-piece MENU button fires K_ESCAPE → back to menu
+
+### APK build overview
+
+Full details in [ANDROID_BUILD.md](ANDROID_BUILD.md). Key points:
+
+=======
 ### Mobile canvas layout (v2.2.0)
 
 ```
@@ -424,6 +497,7 @@ Physical on Pixel 5a (1080 usable width, scale = 1080/460 = 2.348):
 
 Full details in [ANDROID_BUILD.md](ANDROID_BUILD.md). Key points:
 
+>>>>>>> origin/main
 - **CI:** GitHub Actions → `buildozer android debug` → published to `apk-latest` release
   (~20 min build, ~10 min with cache hit)
 - **Local:** `~/.buildozer-env/bin/buildozer android debug` → `bin/*.apk`

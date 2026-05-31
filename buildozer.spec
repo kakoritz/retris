@@ -6,7 +6,11 @@ source.dir      = .
 source.include_exts = py,json
 source.exclude_dirs = tests, .git, .claude, __pycache__, .venv, custom_recipes
 
+<<<<<<< HEAD
+version         = 2.5.0
+=======
 version         = 2.2.0
+>>>>>>> origin/main
 
 # Use compiled pygame recipe (builds from source against Android SDL2).
 # custom_recipes/pygame overrides p4a's 2.1.0 with 2.6.1 (Python 3.14 support).
@@ -31,7 +35,9 @@ android.permissions = INTERNET
 # Smaller mixer buffer for lower Android audio latency
 android.meta_data = audio.buffer_size=1024
 
-icon.filename = %(source.dir)s/icon.png
+icon.filename       = %(source.dir)s/icon.png
+presplash           = %(source.dir)s/presplash.jpg
+presplash.color     = #0F0F23
 
 # Custom recipes directory: overrides p4a's pygame recipe with 2.6.1 which
 # supports Python 3.13/3.14 (longintrepr.h was removed from pygame in 2.5.0).

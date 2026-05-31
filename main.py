@@ -115,6 +115,7 @@ CASCADING      = "cascading"
 DEMO           = "demo"
 ABOUT          = "about"
 CONTROLS       = "controls"
+PRACTICE       = "practice"
 
 
 def _make_display(scale: float) -> pygame.Surface:
@@ -171,6 +172,9 @@ def main():
             draw_mobile_side_margins,
             draw_mobile_game_over, draw_mobile_pause,
             draw_mobile_leaderboard,
+            draw_mobile_menu, draw_mobile_settings, draw_mobile_controls,
+            draw_mobile_practice_overlay, M_PRACTICE_BTN,
+            draw_mobile_name_entry, M_PAUSE_ITEM_RECTS,
         )
         _mobile = True
 
@@ -211,6 +215,9 @@ def main():
     clock = pygame.time.Clock()
     music.start()
     audio.prime()
+    # Apply saved volumes on startup
+    music.set_volume(app.music_vol_pct / 100)
+    music_game.set_volume(app.music_vol_pct / 100)
 
     gs  = GameState()
     gs.reset()
@@ -219,9 +226,16 @@ def main():
     app.updater = UpdateChecker(VERSION)
 
     if _mobile:
-        # Default ghost opacity 40% on mobile (vs 15% desktop)
+        # Mobile defaults for ghost
         if app.ghost_opacity_pct == 15:
-            app.ghost_opacity_pct = 40
+            app.ghost_opacity_pct = 100   # 100 → alpha 110, subtle dotted outline
+        app.ghost_shadow_type = 2         # dotted outline
+        # Mobile default game speed = slow (0.5× fall speed)
+        import config as _cfg
+        if app.game_speed == "fast":      # hasn't been saved before — set mobile default
+            app.game_speed = "slow"
+            app.game_speed_mult = _cfg.GAME_SPEED_MULT["slow"]
+            _cfg.set_game_speed("slow")
 
     if _android:
         import touch_controls as _tc_init
@@ -261,7 +275,8 @@ def main():
             grounded = not gs.board.is_valid(gs.current, dy=1)
 
             gs.fall_timer += dt
-            if gs.fall_timer >= fall_speed(gs.speed_tier):
+            _fall_delay = int(fall_speed(gs.speed_tier) * getattr(app, 'game_speed_mult', 1.0))
+            if gs.fall_timer >= _fall_delay:
                 gs.fall_timer = 0
                 if not grounded:
                     if gs.level >= GRAVITY_20G_LEVEL:
@@ -347,11 +362,15 @@ def main():
 
         # ── draw ──────────────────────────────────────────────────────────────
         if app.state == MENU:
-            draw_menu(app.screen, app.blink_on, updater=app.updater,
-                      menu_row=app.menu_row)
+            if _mobile:
+                draw_mobile_menu(app.screen, app.blink_on,
+                                 updater=app.updater, menu_row=app.menu_row)
+            else:
+                draw_menu(app.screen, app.blink_on, updater=app.updater,
+                          menu_row=app.menu_row)
 
         elif app.state in (PLAYING, CLEARING, CASCADING, GAME_OVER, GAME_OVER_ANIM,
-                           PAUSED, DEMO):
+                           PAUSED, DEMO, PRACTICE):
             app.screen.fill(BG_COLOR)
 
             level_theme = (gs.level - 1) % 10   # 0-9 cycling per level
@@ -363,6 +382,7 @@ def main():
 
             if _mobile:
                 # ── MOBILE rendering path ────────────────────────────────────
+                _in_demo = app.demo_active or app.state == DEMO
                 bsurf = pygame.Surface((M_BOARD_W, M_BOARD_H))
                 draw_mobile_board(bsurf, gs.board, flash_rows=fr, flash_on=fo,
                                   flash_quad=fq, wow_on=fw,
@@ -373,7 +393,8 @@ def main():
 
                 if app.state in (PLAYING, PAUSED, DEMO):
                     draw_mobile_ghost(bsurf, gs.board, gs.current,
-                                      app.ghost_opacity_pct, palette_phase=level_theme)
+                                      app.ghost_opacity_pct, palette_phase=level_theme,
+                                      shadow_type=getattr(app, 'ghost_shadow_type', 1))
                     draw_mobile_piece(bsurf, gs.current, palette_phase=level_theme)
 
                 draw_particles(bsurf, gs.particles)
@@ -405,12 +426,12 @@ def main():
                     fl.fill((255, 255, 255, alpha))
                     bsurf.blit(fl, (0, 0))
 
-                if app.state == GAME_OVER:
-                    draw_mobile_game_over(bsurf, gs.score,
-                                          gs.stat_pieces, gs.stat_tetrises,
-                                          gs.stat_tspins, gs.stat_combo, gs.stat_time)
                 elif app.state == GAME_OVER_ANIM:
-                    app.go_anim.draw(bsurf)
+                    # Transparent surface so blocks show over the board, not a black box
+                    _anim = pygame.Surface((BOARD_WIDTH, BOARD_HEIGHT), pygame.SRCALPHA)
+                    app.go_anim.draw(_anim)
+                    bsurf.blit(_anim, ((M_BOARD_W - BOARD_WIDTH)//2,
+                                       (M_BOARD_H - BOARD_HEIGHT)//2))
 
                 if gs.level_popup_timer > 0:
                     draw_mobile_level_up(bsurf, gs.level_popup_num,
@@ -420,6 +441,12 @@ def main():
                 if app.state == DEMO:
                     draw_demo_overlay(bsurf, app.demo_label)
 
+                if app.state == PRACTICE:
+                    if not hasattr(app, '_practice_timer'):
+                        app._practice_timer = 0
+                    app._practice_timer += dt
+                    draw_mobile_practice_overlay(bsurf, app._practice_timer)
+
                 draw_mobile_popup(bsurf, gs.popup_count, gs.popup_timer)
 
                 ox = oy = 0
@@ -428,27 +455,41 @@ def main():
                     ox  = random.randint(-amt, amt)
                     oy  = random.randint(-amt, amt)
 
-                app.screen.blit(bsurf, (M_BOARD_X + ox, M_BOARD_Y + oy))
+                if _in_demo:
+                    # Demo: scale board to fill full canvas width, centre vertically
+                    _dsc  = SCREEN_WIDTH / M_BOARD_W
+                    _dw   = SCREEN_WIDTH
+                    _dh   = int(M_BOARD_H * _dsc)
+                    _dby  = (M_CANVAS_H - M_BTN_H - _dh) // 2
+                    app.screen.blit(
+                        pygame.transform.smoothscale(bsurf, (_dw, _dh)),
+                        (ox, _dby + oy))
+                else:
+                    app.screen.blit(bsurf, (M_BOARD_X + ox, M_BOARD_Y + oy))
+                    # Side margin fill + board border only during regular gameplay
+                    draw_mobile_side_margins(app.screen, level_theme)
+                    pygame.draw.rect(app.screen, BORDER_COLOR,
+                                     (M_BOARD_X - 1, M_BOARD_Y - 1,
+                                      M_BOARD_W + 2, M_BOARD_H + 2), 1)
 
-                # Side margin fill + board border
-                draw_mobile_side_margins(app.screen, level_theme)
-                pygame.draw.rect(app.screen, BORDER_COLOR,
-                                 (M_BOARD_X - 1, M_BOARD_Y - 1,
-                                  M_BOARD_W + 2, M_BOARD_H + 2), 1)
+                # Stats + info strips — hidden during demo AND any demo substate
+                if not _in_demo:
+                    draw_mobile_stats(
+                        app.screen, gs.score, gs.lines, gs.level,
+                        in_game=app.state in (PLAYING, CLEARING, CASCADING, PAUSED),
+                    )
+                    draw_mobile_info_strip(
+                        app.screen, gs.piece_queue,
+                        hold_piece=gs.hold_piece, hold_used=gs.hold_used,
+                        hold_has_piece=gs.hold_piece is not None,
+                        palette_phase=level_theme,
+                    )
 
-                # Stats strip (top)
-                draw_mobile_stats(
-                    app.screen, gs.score, gs.lines, gs.level,
-                    in_game=app.state in (PLAYING, CLEARING, CASCADING, PAUSED),
-                )
-
-                # Info strip (below board: next pieces + hold)
-                draw_mobile_info_strip(
-                    app.screen, gs.piece_queue,
-                    hold_piece=gs.hold_piece, hold_used=gs.hold_used,
-                    hold_has_piece=gs.hold_piece is not None,
-                    palette_phase=level_theme,
-                )
+                # Game-over overlay on full canvas — same as pause (transparent, not black box)
+                if app.state == GAME_OVER:
+                    draw_mobile_game_over(app.screen, gs.score,
+                                          gs.stat_pieces, gs.stat_tetrises,
+                                          gs.stat_tspins, gs.stat_combo, gs.stat_time)
 
                 if app.state == PAUSED:
                     draw_mobile_pause(app.screen, app.blink_on, app.pause_row)
@@ -551,8 +592,12 @@ def main():
                     draw_pause(app.screen, app.blink_on, app.pause_row)
 
         elif app.state == ENTER_NAME:
-            draw_name_entry(app.screen, app.initials, app.ini_cursor, app.blink_on,
-                            gs.score, gs.lines, gs.level)
+            if _mobile:
+                draw_mobile_name_entry(app.screen, app.initials, app.ini_cursor,
+                                       app.blink_on, gs.score, gs.lines, gs.level)
+            else:
+                draw_name_entry(app.screen, app.initials, app.ini_cursor, app.blink_on,
+                                gs.score, gs.lines, gs.level)
 
         elif app.state == LEADERBOARD:
             if _mobile:
@@ -562,9 +607,15 @@ def main():
                 draw_leaderboard(app.screen, app.lb_scores, app.lb_hi_name, app.lb_hi_score)
 
         elif app.state == SETTINGS:
-            draw_settings(app.screen, app.music_vol_pct, app.sfx_vol_pct,
-                          app.settings_row, music.is_muted(), app.current_scale,
-                          app.ghost_opacity_pct, app.das_preset)
+            if _mobile:
+                draw_mobile_settings(app.screen, app.music_vol_pct, app.sfx_vol_pct,
+                                     app.ghost_opacity_pct, app.das_preset,
+                                     app.settings_row,
+                                     game_speed=getattr(app, 'game_speed', 'fast'))
+            else:
+                draw_settings(app.screen, app.music_vol_pct, app.sfx_vol_pct,
+                              app.settings_row, music.is_muted(), app.current_scale,
+                              app.ghost_opacity_pct, app.das_preset)
 
         elif app.state == MUSIC_TEST:
             draw_music_test(app.screen, app.music_test_tier)
@@ -573,14 +624,22 @@ def main():
             draw_about(app.screen, app.updater)
 
         elif app.state == CONTROLS:
-            draw_controls(app.screen)
+            if _mobile:
+                draw_mobile_controls(app.screen)
+            else:
+                draw_controls(app.screen)
 
-        # Touch controls (Android only)
+        # Touch controls (Android only) — hidden during gameplay (gestures used instead)
+        _gameplay_states = (PLAYING, CLEARING, CASCADING, PRACTICE)
         if app.touch_enabled:
             if _mobile:
                 import touch_controls as _tc_mod
-                _tc_mod.set_keys_for_state(app.state)
-                draw_mobile_touch_controls(app.screen, _BTN_ZONE_Y, M_BTN_H, app.state)
+                _eff_state = DEMO if app.demo_active else app.state
+                _tc_mod.set_keys_for_state(_eff_state)
+                # Only draw button bar for non-gameplay states
+                if app.state not in _gameplay_states and not app.demo_active:
+                    draw_mobile_touch_controls(
+                        app.screen, _BTN_ZONE_Y, M_BTN_H, _eff_state)
             elif app.touch_zone_h > 0:
                 draw_touch_controls(app.screen, SCREEN_HEIGHT, app.touch_zone_h)
 

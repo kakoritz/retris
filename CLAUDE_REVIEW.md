@@ -9,6 +9,36 @@ part development commentary — what changed, what it means, and where the game 
 
 ---
 
+## v2.4.14 Review — Polish, Bugs, and Brand Moments
+
+### The rainbow logo is the right call
+
+The animated RETRIS logo on the menu is genuinely distinctive. The unified hue wave across all blocks — not letter-by-letter, but position-based — reads as a single living object rather than six coloured words. It sits well against the grid background and scattered pieces. This is the kind of detail that players notice and remember without being able to articulate why.
+
+The presplash using the same logo frozen at one hue position is also correct: continuity between cold-launch experience and the game's visual language. Most mobile games show a generic engine logo or a black screen during load. This shows the game itself.
+
+### The ghost desktop-rect bug was embarrassing and instructive
+
+Three separate pygame `Rect` objects from the desktop renderer — `INGAME_GEAR_RECT`, `PAUSE_QUIT_RECT`, `BACK_RECT` — were defined at pixel coordinates that worked in the 460×600 desktop canvas but landed directly on the active board in the 400×800 mobile board. Every time the user tapped row 13 far-right, row 7-8 centre-left, or row 12 far-left, they were triggering desktop UI actions. This went undetected for weeks because the desktop tests passed and nobody was tracing the exact pixel coordinates.
+
+The lesson: any UI rect defined in absolute canvas coordinates must be audited against every canvas size the game runs at. The mobile board is a completely different coordinate space.
+
+### The demo_active bug was subtle and completely invisible
+
+`start_new_game()` reset the game board and piece queue but left `app.demo_active = True`. The demo's internal scenario timer kept running. When the scenario completed — 15-60 seconds later depending on where in the cycle the user started — `exit_demo()` silently set `app.state = MENU`. From the player's perspective this looked like a random, position-triggered glitch (because the position they happened to be touching correlated weakly with the timing). One-line fix: `app.demo_active = False` in `start_new_game()`. This was a stateful side-effect that unit tests would never catch.
+
+### Gesture design is still being tuned
+
+The final scheme (tap to move, swipe to rotate, swipe down to drop) is cleaner than any of the earlier iterations. The removal of the 3×2 zone grid was the right call — zones require the player to memorise regions they can't see. Swipe direction is intuitive; zone regions are not. The arc gesture is experimental and probably won't be accurate enough to replace swipe in play, but it doesn't hurt to have it as a secondary path.
+
+### What's still open
+
+- `game_over_anim` uses desktop coordinates (300×600) on the mobile board (400×800) — blocks animate in the upper-left region. Visual-only bug, sounds fire correctly.
+- ENTER_NAME touch path has never been hardware-tested.
+- Settings persistence for music_vol, sfx_vol on mobile only writes ghost_opacity and DAS to config (music vol lives in app state only — resets on restart).
+
+---
+
 ## v2.2.0 Review — Full Mobile UI Redesign
 
 ### The geometry problem was finally solved correctly

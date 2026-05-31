@@ -43,8 +43,8 @@ Version number format: `v1.MAJOR.MINOR` — bump MINOR for any visible change, M
 
 - **Language:** Python 3.10+, Pygame 2.5+, NumPy
 - **No external assets** — every pixel, sound, and note is generated at runtime
-- **Logical resolution:** 460×600 desktop · 460×940 mobile (M_CANVAS_H); scaled to display via `current_scale`
-- **State machine states:** MENU, PLAYING, CLEARING, CASCADING, GAME_OVER_ANIM, GAME_OVER, ENTER_NAME, LEADERBOARD, SETTINGS, PAUSED, MUSIC_TEST, DEMO
+- **Logical resolution:** 460×600 desktop · 460×960 mobile (M_CANVAS_H); scaled to display via `current_scale`
+- **State machine states:** MENU, PLAYING, CLEARING, CASCADING, GAME_OVER_ANIM, GAME_OVER, ENTER_NAME, LEADERBOARD, SETTINGS, PAUSED, MUSIC_TEST, DEMO, PRACTICE
 - **FPS:** 60, enforced via `clock.tick(FPS)`
 - **Board:** 10 cols × 20 rows, `board.grid[row][col]` stores color_id (0 = empty)
 

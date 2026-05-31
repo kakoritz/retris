@@ -8,7 +8,8 @@ import pygame
 
 # Default game keys
 _KEYS_GAME     = [pygame.K_LEFT, pygame.K_DOWN, pygame.K_SPACE,
-                  pygame.K_c, pygame.K_UP, pygame.K_RIGHT]
+                  pygame.K_UP, pygame.K_RIGHT]
+                  # K_c (HOLD) removed — tap the HOLD box in the info strip instead
 _KEYS_MENU     = [pygame.K_UP, pygame.K_RETURN, pygame.K_DOWN]
 _KEYS_PAUSE    = [pygame.K_UP, pygame.K_RETURN, pygame.K_DOWN]
 _KEYS_NAME     = [pygame.K_UP, pygame.K_LEFT, pygame.K_RETURN,
@@ -28,8 +29,10 @@ _STATE_KEYS = {
     'enter_name':     _KEYS_NAME,
     'leaderboard':    _KEYS_MENU_BTN,
     'settings':       _KEYS_MENU_BTN,
+    'demo':           _KEYS_MENU_BTN,
     'about':          _KEYS_MENU_BTN,
     'controls':       _KEYS_MENU_BTN,
+    'practice':       _KEYS_MENU_BTN,
     'music_test':     _KEYS_MENU_BTN,
 }
 

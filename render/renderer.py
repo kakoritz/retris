@@ -172,12 +172,14 @@ _LOGO_COLORS = [3, 1, 2, 4, 6, 5]
 _LOGO_CELL   = 9   # px per block in the logo
 
 
-def draw_retris_logo(surf: pygame.Surface, top_y: int = 8) -> None:
-    letters = list("RETRIS")
-    letter_w = 5 * _LOGO_CELL
-    gap      = 2 * _LOGO_CELL
+def draw_retris_logo(surf: pygame.Surface, top_y: int = 8,
+                     cell: int = _LOGO_CELL) -> None:
+    letters  = list("RETRIS")
+    letter_w = 5 * cell
+    gap      = 2 * cell
     total_w  = len(letters) * letter_w + (len(letters) - 1) * gap
-    x0       = (SCREEN_WIDTH - total_w) // 2
+    surf_w   = surf.get_width()
+    x0       = (surf_w - total_w) // 2
 
     for li, ch in enumerate(letters):
         glyph    = _LOGO_GLYPHS[ch]
@@ -186,8 +188,8 @@ def draw_retris_logo(surf: pygame.Surface, top_y: int = 8) -> None:
         for gy, row in enumerate(glyph):
             for gx, val in enumerate(row):
                 if val:
-                    surf.blit(get_block(color_id, _LOGO_CELL),
-                              (lx + gx * _LOGO_CELL, top_y + gy * _LOGO_CELL))
+                    surf.blit(get_block(color_id, cell),
+                              (lx + gx * cell, top_y + gy * cell))
 
 
 # ── animated tetromino background ─────────────────────────────────────────────

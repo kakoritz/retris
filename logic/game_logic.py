@@ -93,6 +93,10 @@ def do_hold(gs: GameState, app: AppState) -> None:
 def start_new_game(gs: GameState, app: AppState) -> None:
     gs.reset()
     app.reset_das()
+    # Kill demo mode — without this, demo's exit_demo() fires mid-game → MENU
+    app.demo_active    = False
+    app.demo_phase     = 'setup'
+    app.menu_idle_timer = 0
     # Reset odometer so it doesn't show stale values from demo or prior game
     app.score_disp        = 0.0
     app.score_disp_digits = [0] * 8
