@@ -258,13 +258,16 @@ def _handle_click(lx: float, ly: float, gs, app: AppState) -> bool:
             except ImportError:
                 pass
 
-        should_pause = INGAME_GEAR_RECT.collidepoint(pt)
-        if not should_pause and getattr(app, 'touch_enabled', False):
+        # On mobile: only the T-piece button (M_PAUSE_RECT) triggers pause
+        # INGAME_GEAR_RECT is excluded — it's at desktop coords that overlap the mobile board
+        if getattr(app, 'touch_enabled', False):
             try:
                 from renderer_mobile import M_PAUSE_RECT
                 should_pause = M_PAUSE_RECT.collidepoint(pt)
             except ImportError:
-                pass
+                should_pause = False
+        else:
+            should_pause = INGAME_GEAR_RECT.collidepoint(pt)
         if should_pause:
             audio.play('lock')   # thud sound on pause
             app.pre_pause_vol = pygame.mixer.music.get_volume()
