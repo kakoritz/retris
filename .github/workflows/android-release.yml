@@ -2,6 +2,11 @@ name: Build Android AAB (Play Store)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [development]
+    paths:
+      - ".github/workflows/android-release.yml"
+      - "buildozer.spec"
 
 permissions:
   contents: read
