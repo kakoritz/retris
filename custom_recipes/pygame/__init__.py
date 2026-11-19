@@ -19,7 +19,7 @@ class Pygame2Recipe(CompiledComponentsPythonRecipe):
     depends = ['sdl2', 'sdl2_image', 'sdl2_mixer', 'sdl2_ttf', 'setuptools', 'jpeg', 'png']
     call_hostpython_via_targetpython = False
     install_in_hostpython = False
-    hostpython_prerequisites = ['setuptools', 'cython>=3.0']
+    hostpython_prerequisites = ['setuptools', 'cython>=3.0,<3.1']
 
     def prebuild_arch(self, arch):
         super().prebuild_arch(arch)
