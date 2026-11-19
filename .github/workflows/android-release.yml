@@ -55,6 +55,9 @@ jobs:
         run: |
           printf '%s' "$KEYSTORE_B64" | tr -d '\r\n ' | base64 -d > "$RUNNER_TEMP/upload.keystore"
 
+      - name: Point build_dir at the runner (spec has a local path)
+        run: sed -i "s|^build_dir *=.*|build_dir = $HOME/.retris-build|" buildozer.spec
+
       - name: Build signed release AAB
         shell: bash
         env:
