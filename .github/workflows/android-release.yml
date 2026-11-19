@@ -39,7 +39,7 @@ jobs:
             libltdl-dev
 
       - name: Install buildozer and Cython
-        run: pip install 'buildozer>=1.5' 'cython>=3'
+        run: pip install 'buildozer>=1.5' 'cython>=3,<3.1'
 
       - name: Cache buildozer downloads
         uses: actions/cache@v4
