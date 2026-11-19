@@ -17,8 +17,12 @@ fullscreen      = 1
 
 # Android SDK/NDK
 android.minapi  = 24
-android.targetapi = 34
+android.api     = 36
+android.targetapi = 36
 android.ndk     = 28c
+
+# Google Play requires AAB (not APK) for new apps
+android.release_artifact = aab
 
 # Target 64-bit ARM (all phones since ~2019)
 android.archs   = arm64-v8a
