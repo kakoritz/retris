@@ -53,7 +53,7 @@ jobs:
         env:
           KEYSTORE_B64: ${{ secrets.UPLOAD_KEYSTORE_B64 }}
         run: |
-          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.keystore"
+          printf '%s' "$KEYSTORE_B64" | tr -d '\r\n ' | base64 -d > "$RUNNER_TEMP/upload.keystore"
 
       - name: Build signed release AAB
         shell: bash
