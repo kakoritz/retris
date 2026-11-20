@@ -216,10 +216,6 @@ async def main():
     clock = pygame.time.Clock()
     music.start()
     audio.prime()
-    # Apply saved volumes on startup
-    music.set_volume(app.music_vol_pct / 100)
-    music_game.set_volume(app.music_vol_pct / 100)
-
     gs  = GameState()
     gs.reset()
     app = AppState(display, screen, current_scale)
