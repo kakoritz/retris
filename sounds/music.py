@@ -4,7 +4,11 @@ Procedural chiptune — Tron/Daft Punk electronic composition.
 Sawtooth bass with sub-octave layer; square-wave arpeggio and melody.
 """
 import os
-import wave
+try:
+    import wave as _wave_mod
+    _HAS_WAVE = True
+except ImportError:
+    _HAS_WAVE = False
 import tempfile
 import pygame
 
@@ -70,7 +74,7 @@ def _mix(a, b):
 
 # ── composition ───────────────────────────────────────────────────────────────
 
-def _build() -> np.ndarray:
+def _build():
     BPM = 128
     E8  = int(60000 / (BPM * 2))   # 8th note  ≈ 234 ms
     S16 = E8 // 2                   # 16th note ≈ 117 ms
@@ -237,12 +241,24 @@ def _build() -> np.ndarray:
 
 # ── WAV I/O ───────────────────────────────────────────────────────────────────
 
-def _write_wav(data: np.ndarray, path: str) -> None:
-    with wave.open(path, 'w') as f:
-        f.setnchannels(2)
-        f.setsampwidth(2)
-        f.setframerate(_RATE)
-        f.writeframes(data.tobytes())
+def _write_wav(data, path: str) -> None:
+    if _HAS_WAVE:
+        with _wave_mod.open(path, 'w') as f:
+            f.setnchannels(2)
+            f.setsampwidth(2)
+            f.setframerate(_RATE)
+            f.writeframes(data.tobytes())
+    else:
+        import struct
+        pcm = data.tobytes()
+        with open(path, 'wb') as f:
+            f.write(b'RIFF')
+            f.write(struct.pack('<I', 36 + len(pcm)))
+            f.write(b'WAVEfmt ')
+            f.write(struct.pack('<IHHIIHH', 16, 1, 2, _RATE, _RATE * 4, 4, 16))
+            f.write(b'data')
+            f.write(struct.pack('<I', len(pcm)))
+            f.write(pcm)
 
 
 # ── internal volume helper ────────────────────────────────────────────────────

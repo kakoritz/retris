@@ -1062,8 +1062,13 @@ def draw_menu(surf: pygame.Surface, blink_on: bool, updater=None,
         _draw_mini_piece(surf, SHAPES[pt], slot_w * i + slot_w // 2, 225, 20)
 
     # ── Q3 (y 300–450): menu options ─────────────────────────────────────────
-    items  = ["START  GAME", "LEADERBOARD", "SETTINGS"]
-    item_y = [318, 366, 414]
+    import sys as _sys_r
+    if _sys_r.platform == "emscripten":
+        items  = ["START  GAME", "SETTINGS"]
+        item_y = [342, 390]
+    else:
+        items  = ["START  GAME", "LEADERBOARD", "SETTINGS"]
+        item_y = [318, 366, 414]
 
     for i, (label, y) in enumerate(zip(items, item_y)):
         selected = (i == menu_row)

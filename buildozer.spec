@@ -6,11 +6,7 @@ source.dir      = .
 source.include_exts = py,json
 source.exclude_dirs = tests, .git, .claude, __pycache__, .venv, custom_recipes
 
-<<<<<<< HEAD
-version         = 2.5.0
-=======
-version         = 2.2.0
->>>>>>> origin/main
+version         = 2.5.3
 
 # Use compiled pygame recipe (builds from source against Android SDL2).
 # custom_recipes/pygame overrides p4a's 2.1.0 with 2.6.1 (Python 3.14 support).
@@ -21,8 +17,12 @@ fullscreen      = 1
 
 # Android SDK/NDK
 android.minapi  = 24
-android.targetapi = 34
+android.api     = 36
+android.targetapi = 36
 android.ndk     = 28c
+
+# Google Play requires AAB (not APK) for new apps
+android.release_artifact = aab
 
 # Target 64-bit ARM (all phones since ~2019)
 android.archs   = arm64-v8a

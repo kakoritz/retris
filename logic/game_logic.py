@@ -109,13 +109,31 @@ def end_game(gs: GameState, app: AppState) -> None:
     gs.stat_time = (pygame.time.get_ticks() - gs.stat_start_ms) / 1000.0
     music.fadeout(1200)
     app.go_anim.reset()
-    if highscore.qualifies(gs.score):
+    import sys as _sys_gl
+    _web = _sys_gl.platform == "emscripten"
+    if not _web and highscore.qualifies(gs.score):
         app.initials        = ['A', 'A', 'A']
         app.ini_cursor      = 0
         app.post_anim_state = ENTER_NAME
     else:
         app.post_anim_state = GAME_OVER
     app.state = GAME_OVER_ANIM
+
+    # ── Web portal score bridge ───────────────────────────────────────────────
+    # When running in the browser via Pygbag, call the JS score submission
+    # function. This is a no-op on desktop/Android (sys.platform check).
+    import sys
+    if sys.platform == "emscripten":
+        try:
+            import platform
+            platform.window.retrisSubmitScore(
+                int(gs.score),
+                int(gs.level),
+                int(gs.lines),
+                float(gs.stat_time),
+            )
+        except Exception:
+            pass   # Guest play or JS bridge unavailable
 
 
 def reset_lock(gs: GameState) -> None:

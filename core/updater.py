@@ -43,7 +43,11 @@ class UpdateChecker:
         self.status:          str        = "checking"
         self.latest_version:  str | None = None
         self.release_notes:   list       = []
-        threading.Thread(target=self._run, daemon=True).start()
+        import sys
+        if sys.platform != "emscripten":
+            threading.Thread(target=self._run, daemon=True).start()
+        else:
+            self.status = "offline"
 
     def _run(self) -> None:
         try:

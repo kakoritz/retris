@@ -11,6 +11,9 @@ from pathlib import Path
 
 
 def _data_dir() -> Path:
+    import sys
+    if sys.platform == "emscripten":
+        return Path("/tmp")
     p = os.environ.get('ANDROID_PRIVATE')
     return Path(p) if p else Path(__file__).parent.parent
 

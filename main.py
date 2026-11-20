@@ -150,7 +150,8 @@ def _build_icon() -> pygame.Surface:
     return surf
 
 
-def main():
+async def main():
+    import asyncio
     pygame.init()
     pygame.mixer.music.set_endevent(MUSIC_END)
 
@@ -215,15 +216,15 @@ def main():
     clock = pygame.time.Clock()
     music.start()
     audio.prime()
-    # Apply saved volumes on startup
-    music.set_volume(app.music_vol_pct / 100)
-    music_game.set_volume(app.music_vol_pct / 100)
-
     gs  = GameState()
     gs.reset()
     app = AppState(display, screen, current_scale)
     app.best    = highscore.best()
     app.updater = UpdateChecker(VERSION)
+
+    # Apply saved volumes (must be after app is created)
+    music.set_volume(app.music_vol_pct / 100)
+    music_game.set_volume(app.music_vol_pct / 100)
 
     if _mobile:
         # Mobile defaults for ghost
@@ -252,8 +253,12 @@ def main():
         app.touch_scale   = current_scale
         app.touch_zone_h  = _touch_zone_h
 
+    import sys as _sys_web
+    _is_web = _sys_web.platform == "emscripten"
+
     while True:
-        dt = clock.tick(FPS)
+        # On web (Pygbag) don't block — browser controls timing
+        dt = clock.tick(0) if _is_web else clock.tick(FPS)
 
         app.blink_timer += dt
         if app.blink_timer >= 500:
@@ -664,7 +669,17 @@ def main():
             pygame.transform.smoothscale(app.screen, app.display.get_size(), app.display)
         pygame.display.flip()
 
+        # Yield to browser event loop when running as WASM via Pygbag
+        import sys as _sys
+        if _sys.platform == "emscripten":
+            import asyncio as _aio
+            await _aio.sleep(0)
 
-if __name__ == "__main__":
+
+import sys as _sys_entry, asyncio as _aio_entry
+
+if _sys_entry.platform == "emscripten":
+    _aio_entry.run(main())
+elif __name__ == "__main__":
     from crash_handler import run_with_crash_handler
-    run_with_crash_handler(main)
+    run_with_crash_handler(lambda: _aio_entry.run(main()))
